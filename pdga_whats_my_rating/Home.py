@@ -69,7 +69,7 @@ if submit:
             - **Number of rounds evaluated:** {len(df[df['evaluated'] == "Yes"])}
             - **Number of rounds used:** {len(df[df['used'] == "Yes"])}
             - **Drop Threshold:** {int(drop_thres)} *(current official rating - 2.5 SD)*
-            - **NEW TOURNAMENTS:** {", ".join(player.new_tournaments["Tournament"].values.tolist())}
+            - **NEW TOURNAMENTS:** {", ".join(player.new_tournaments["Tournament"].values.tolist()) if player.new_tournaments is not None else "None"}
                 """
             )
 

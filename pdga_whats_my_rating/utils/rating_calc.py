@@ -22,7 +22,7 @@ def calculate_rating(df, current_rating):
     df.loc[valid_dates, "evaluated"] = "Yes"
 
     # double the last 25%
-    num_double = math.ceil(len(df[valid_dates]) * 0.25)
+    num_double = round(len(df[valid_dates]) * 0.25)
     df.loc[: (num_double - 1), "weight"] = 2
 
     # remove outliers

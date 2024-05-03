@@ -21,7 +21,8 @@ class Player:
         self._fetch_ratings_detail()
         if self.ratings_detail_df is not None:
             self._fetch_recent_events()
-            self._add_new_tournaments()
+            if self.new_tournaments is not None:
+                self._add_new_tournaments()
 
     def _fetch_basic_info(self):
         URL = f"https://www.pdga.com/player/{self.pdga_no}"
@@ -98,10 +99,9 @@ class Player:
         rated_tournaments = set(self.ratings_detail_df["tournament"].unique())
 
         new_tournaments = list(recent_tournaments - rated_tournaments)
-
-        df = df[df["Tournament"].isin(new_tournaments)].reset_index(drop=True)
-
-        self.new_tournaments = df
+        if len(new_tournaments) > 0:
+            df = df[df["Tournament"].isin(new_tournaments)].reset_index(drop=True)
+            self.new_tournaments = df
 
     def _add_new_tournaments(self):
         soup = self.home_soup
@@ -145,7 +145,7 @@ class Player:
 
                         # print(row)
                     continue
-
+        # if len(new_rows) > 0:
         new_df = pd.concat(new_rows)
 
         self.ratings_detail_df = pd.concat([self.ratings_detail_df, new_df])
