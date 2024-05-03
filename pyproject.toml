@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "pdga-whats-my-rating"
+version = "0.1.0"
+description = ""
+authors = ["Casey Clark <cclark@captechconsulting.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+streamlit = "^1.33.0"
+streamlit-extras = "^0.4.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
