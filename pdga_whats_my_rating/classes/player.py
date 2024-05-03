@@ -19,8 +19,9 @@ class Player:
 
         self._fetch_basic_info()
         self._fetch_ratings_detail()
-        self._fetch_recent_events()
-        self._add_new_tournaments()
+        if self.ratings_detail_df is not None:
+            self._fetch_recent_events()
+            self._add_new_tournaments()
 
     def _fetch_basic_info(self):
         URL = f"https://www.pdga.com/player/{self.pdga_no}"

@@ -80,4 +80,6 @@ if submit:
 
         else:
             st.markdown(f"### [{player.name}](https://pdga.com/player/{pdga_no})")
-            st.write("no data available")
+            st.write(
+                "no data available. could be an expired member or they haven't played tournaments in a while."
+            )
