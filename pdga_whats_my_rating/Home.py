@@ -35,6 +35,7 @@ if submit:
             CONTINUE = False
             st.error(
                 f"player info not available for pdga number {pdga_no}\nAre you sure this is a valid PDGA number?"
+                "If this is a valid PDGA number, please reach out to me! Thanks."
             )
             print(e)
 

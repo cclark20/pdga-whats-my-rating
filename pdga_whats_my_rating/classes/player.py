@@ -122,30 +122,34 @@ class Player:
 
                     # print(df[df["PDGA#"] == int(self.pdga_no)])
                     for i, rating in enumerate(ratings):
-                        row_df = pd.DataFrame(
-                            [
-                                {
-                                    "tournament": tourns.loc[t, "Tournament"],
-                                    "date": tourns.loc[t, "Dates"].split(" to ")[-1],
-                                    "division": href.split("#")[-1],
-                                    "round": i + 1,
-                                    "rating": int(
-                                        df[df["PDGA#"] == int(self.pdga_no)][
-                                            rating
-                                        ].values[0]
-                                    ),
-                                    "evaluated": None,
-                                    "used": None,
-                                    "weight": None,
-                                }
-                            ]
-                        )
+                        if df[df["PDGA#"] == int(self.pdga_no)][rating].values[0] > 0:
 
-                        new_rows.append(row_df)
+                            row_df = pd.DataFrame(
+                                [
+                                    {
+                                        "tournament": tourns.loc[t, "Tournament"],
+                                        "date": tourns.loc[t, "Dates"].split(" to ")[
+                                            -1
+                                        ],
+                                        "division": href.split("#")[-1],
+                                        "round": i + 1,
+                                        "rating": int(
+                                            df[df["PDGA#"] == int(self.pdga_no)][
+                                                rating
+                                            ].values[0]
+                                        ),
+                                        "evaluated": None,
+                                        "used": None,
+                                        "weight": None,
+                                    }
+                                ]
+                            )
+
+                            new_rows.append(row_df)
 
                         # print(row)
                     continue
-        # if len(new_rows) > 0:
-        new_df = pd.concat(new_rows)
+        if len(new_rows) > 0:
+            new_df = pd.concat(new_rows)
 
         self.ratings_detail_df = pd.concat([self.ratings_detail_df, new_df])
