@@ -90,8 +90,10 @@ class Player:
 
         tables = soup.find_all("table")
         dfs = []
-        for t in tables[1:]:
-            dfs.append(pd.read_html(StringIO(str(t)))[0])
+        for t in tables:
+            table = pd.read_html(StringIO(str(t)))[0]
+            if "Division" not in table.columns:
+                dfs.append(table)
         df = pd.concat(dfs)
         df = df.dropna(subset="Points")
 
@@ -117,6 +119,9 @@ class Player:
 
             for table in tour_soup.find_all("table")[1:]:
                 df = pd.read_html(StringIO(str(table)))[0]
+                if "PDGA#" not in df:
+                    df["PDGA#"] = 0
+                df["PDGA#"] = df["PDGA#"].fillna(0).astype(int)
                 if int(self.pdga_no) in df["PDGA#"].values.tolist():
                     ratings = [col for col in df if col.startswith("Unnamed")]
 
@@ -147,8 +152,10 @@ class Player:
 
                             new_rows.append(row_df)
 
-                        # print(row)
-                    continue
+                    break
+            else:
+                continue
+
         if len(new_rows) > 0:
             new_df = pd.concat(new_rows)
 
