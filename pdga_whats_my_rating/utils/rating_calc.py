@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
 import math
+import streamlit as st
 
 
+@st.cache_data
 def calculate_rating(df, current_rating):
     """
     12 months prior to latest round
@@ -32,6 +34,21 @@ def calculate_rating(df, current_rating):
 
     # set used col
     df.loc[df["weight"] > 0, "used"] = "Yes"
+
+    # set moving avgs
+    avg1 = 5
+    avg2 = 15
+
+    df["mavg_5"] = (
+        df.sort_values(by=["date", "round"], ascending=True)
+        .rating.rolling(avg1, min_periods=1)
+        .mean()
+    )
+    df["mavg_15"] = (
+        df.sort_values(by=["date", "round"], ascending=True)
+        .rating.rolling(avg2, min_periods=1)
+        .mean()
+    )
 
     # rating
     rating = np.average(df.rating, weights=df.weight)

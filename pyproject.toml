@@ -10,6 +10,7 @@ package-mode = false
 python = "^3.12"
 streamlit = "^1.33.0"
 streamlit-extras = "^0.4.2"
+plotly = "^5.22.0"
 
 
 [build-system]

@@ -1,9 +1,10 @@
 import streamlit as st
 from streamlit_extras.switch_page_button import switch_page
 import pandas as pd
+import plotly.graph_objects as go
 
 from utils.rating_calc import calculate_rating
-
+from utils import figs
 from classes.player import Player
 
 st.set_page_config(page_title="What's My Rating?", page_icon="🥏", layout="wide")
@@ -77,7 +78,25 @@ if submit:
             # if st.button("Enter a New Tournament"):
             #     switch_page("Enter New Tournament")
 
-            edited_df = st.data_editor(df, hide_index=True)
+            # graphs
+            col1, col2 = st.columns(2)
+
+            # rating w moving avg
+            # col1.subheader("History w Moving Average")
+            fig1 = figs.mavg_chart(df)
+            col1.plotly_chart(fig1, use_container_width=True)
+
+            # boxplots
+            # col2.subheader("Ratings by Division")
+            fig2 = figs.div_box_chart(df)
+            col2.plotly_chart(fig2, use_container_width=True)
+
+            st.subheader("Rating Detail")
+            st.dataframe(
+                df.drop(columns=["mavg_5", "mavg_15"]),
+                hide_index=True,
+                use_container_width=True,
+            )
 
         else:
             st.markdown(f"### [{player.name}](https://pdga.com/player/{pdga_no})")

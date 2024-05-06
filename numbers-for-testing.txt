@@ -1,0 +1,16 @@
+# inactive, no stats
+
+# inactive, stats
+
+# active, no new tournaments
+
+# active, new tournaments
+me - 167210
+josh - 167214
+david - 204766
+
+
+# active, with MANY tournamnets
+paul mcbeth - 27523
+calvin - 45971
+schwebby - 12989
