@@ -59,6 +59,7 @@ class Player:
             [
                 "Tournament",
                 "Date",
+                "Tier",
                 "Division",
                 "Round",
                 "Rating",
@@ -77,6 +78,7 @@ class Player:
             columns={
                 "Tournament": "tournament",
                 "Date": "date",
+                "Tier": "tier",
                 "Division": "division",
                 "Round": "round",
                 "Rating": "rating",
@@ -97,13 +99,18 @@ class Player:
         df = pd.concat(dfs)
         df = df.dropna(subset="Points")
 
-        recent_tournaments = set(df["Tournament"].unique())
-        rated_tournaments = set(self.ratings_detail_df["tournament"].unique())
+        min_date = pd.to_datetime(
+            self.rating_date.split()[-1].strip(")"),
+            format="%d-%b-%Y",
+        )
 
-        new_tournaments = list(recent_tournaments - rated_tournaments)
+        df["last_date"] = df["Dates"].str.split(" to ").str[-1]
+        df["last_date"] = pd.to_datetime(df["last_date"], format="%d-%b-%Y")
+
+        new_tournaments = df[df.last_date > min_date].reset_index(drop=True)
+
         if len(new_tournaments) > 0:
-            df = df[df["Tournament"].isin(new_tournaments)].reset_index(drop=True)
-            self.new_tournaments = df
+            self.new_tournaments = new_tournaments.drop(columns=["last_date"])
 
     def _add_new_tournaments(self):
         soup = self.home_soup
@@ -111,7 +118,6 @@ class Player:
 
         new_rows = []
         for t in range(len(tourns)):
-            # print(tourns.loc[t])
             href = soup.find("a", string=tourns.loc[t, "Tournament"])["href"]
             tour_page = requests.get(f"https://www.pdga.com{href}")
             tour_page.raise_for_status()
@@ -136,6 +142,7 @@ class Player:
                                         "date": tourns.loc[t, "Dates"].split(" to ")[
                                             -1
                                         ],
+                                        "tier": tourns.loc[t, "Tier"],
                                         "division": href.split("#")[-1],
                                         "round": i + 1,
                                         "rating": int(
@@ -160,3 +167,24 @@ class Player:
             new_df = pd.concat(new_rows)
 
         self.ratings_detail_df = pd.concat([self.ratings_detail_df, new_df])
+
+    # TODO: finish the logic to get world ranking
+    # def get_world_ranking(self):
+    #     URL = "https://www.pdga.com/players/stats?Year=2024&player_Class=All&order=player_Rating&sort=desc&page="
+    #     page_no = 0
+
+    #     # get total num of records
+    #     first_page_url = URL + str(page_no)
+    #     first_page_response = requests.get(first_page_url)
+    #     first_page_soup = BeautifulSoup(first_page_response.text)
+
+    #     total_records = int(
+    #         first_page_soup.find("div", {"class": "view-footer"}).text.split(" ")[-1]
+    #     )
+    #     records_per_page = 20
+
+    #     # calculate number of pages
+    #     total_pages = -total_records // records_per_page
+
+
+# 27734 - 966
