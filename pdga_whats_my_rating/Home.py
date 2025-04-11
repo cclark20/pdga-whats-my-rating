@@ -35,8 +35,8 @@ if submit:
         except Exception as e:
             CONTINUE = False
             st.error(
-                f"player info not available for pdga number {pdga_no}\nAre you sure this is a valid PDGA number?"
-                "If this is a valid PDGA number, please reach out to me! Thanks."
+                f"player info not available for pdga number {pdga_no}\n Are you sure this is a valid PDGA number?"
+                " If this is a valid PDGA number, please reach out to me! Thanks."
             )
             print(e)
 
@@ -55,10 +55,14 @@ if submit:
             st.markdown(f"### [{player.name}](https://pdga.com/player/{pdga_no})")
             col1, col2 = st.columns(2)
             col1.metric(
-                "Calculated Rating (as of RIGHT NOW)",
+                "Calculated Unofficial Rating (as of RIGHT NOW)",
                 calc_rating,
                 (calc_rating - official_rating),
             )
+            if player.new_tournaments is None:
+                col1.markdown(
+                    "*If you have no new rounds and this is > 2 points off your official rating, please reach out to me!*"
+                )
             col2.metric(
                 f"Official Rating {player.rating_date}",
                 official_rating,
@@ -70,7 +74,9 @@ if submit:
             #### other stuff 
             - **Number of rounds evaluated:** {len(df[df['evaluated'] == "Yes"])}
             - **Number of rounds used:** {len(df[df['used'] == "Yes"])}
-            - **Drop Threshold:** {int(drop_thres)} *(average rating - 2.5 SD)*
+            - **Raw Average Rating:** {df.loc[df["evaluated"] == "Yes", "rating"].mean():.2f}
+            - **Std Dev:** {df.loc[df["evaluated"] == "Yes", "rating"].std(ddof=0):.2f}
+            - **Drop Threshold:** ~{int(drop_thres)} *((average rating - 2.5 SD) + 5) or (average rating - 100)*
             - **NEW TOURNAMENTS:** {", ".join(player.new_tournaments["Tournament"].values.tolist()) if player.new_tournaments is not None else "None"}
                 """
             )
@@ -82,12 +88,10 @@ if submit:
             col1, col2 = st.columns(2)
 
             # rating w moving avg
-            # col1.subheader("History w Moving Average")
             fig1 = figs.mavg_chart(df)
             col1.plotly_chart(fig1, use_container_width=True)
 
             # boxplots
-            # col2.subheader("Ratings by Division")
             fig2 = figs.div_box_chart(df)
             col2.plotly_chart(fig2, use_container_width=True)
 
