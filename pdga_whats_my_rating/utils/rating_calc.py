@@ -11,7 +11,9 @@ def calculate_rating(df, current_rating):
     last 25% are worth double
     2.5 SD below rating is dropped
     """
-    df = df.sort_values(by=["date", "round"], ascending=False).reset_index(drop=True)
+    df = df.sort_values(by=["date", "round"], ascending=[False, True]).reset_index(
+        drop=True
+    )
     df["weight"] = 0  # init weights at 0
     df["evaluated"] = "No"
     df["used"] = "No"
@@ -26,13 +28,19 @@ def calculate_rating(df, current_rating):
     df.loc[valid_dates, "evaluated"] = "Yes"
 
     # double the last 25%
-    num_double = math.floor((len(df[valid_dates]) * 0.25))
+    num_double = round((len(df[valid_dates]) * 0.25))
     df.loc[: (num_double - 1), "weight"] = 2
 
     # remove outliers
-    std = math.floor(df.loc[valid_dates, "rating"].std(ddof=0))
+    std = df.loc[valid_dates, "rating"].std(ddof=0)
     avg = df.loc[valid_dates, "rating"].mean()
-    threshold = math.ceil(avg - (2.5 * std))
+    if (2.5 * std) < 100:
+        threshold = (
+            math.ceil(avg - math.floor((2.5 * std))) + 5
+        )  # +5 is a buffer that I think pdga does
+    else:
+        threshold = math.ceil(avg - 100)
+
     low_ratings = df["rating"] <= threshold
     df.loc[low_ratings, "weight"] = 0
 
