@@ -57,7 +57,9 @@ if submit or pdga_from_query:
             official_rating = player.cur_rating
             df, calc_rating, drop_thres = calculate_rating(df, official_rating)
 
-            st.markdown(f"### [{player.name}](https://pdga.com/player/{pdga_no})")
+            st.markdown(
+                f"### [{player.name}](https://pdga.com/player/{pdga_no}) \n💡*bookmark this page to save this search!*"
+            )
             col1, col2 = st.columns(2)
             col1.metric(
                 "Calculated Unofficial Rating (as of RIGHT NOW)",
