@@ -11,6 +11,8 @@ st.set_page_config(page_title="What's My Rating?", page_icon="🥏", layout="wid
 
 CONTINUE = True
 
+pdga_from_query = st.query_params.get("pdga_no", None)
+
 if "player" not in st.session_state:
     st.session_state["player"] = None
 
@@ -18,10 +20,12 @@ if "player" not in st.session_state:
 # actual page layout and content
 st.title("What's My Rating?")
 with st.form("form"):
-    pdga_no = st.text_input("Enter your PDGA number:")
+    pdga_no = st.text_input(
+        "Enter your PDGA number:", pdga_from_query if pdga_from_query else ""
+    )
     submit = st.form_submit_button("Get Data")
 
-if submit:
+if submit or pdga_from_query:
     try:
         int(pdga_no)
     except:
@@ -29,6 +33,7 @@ if submit:
         st.error("must be a valid pdga number")
 
     if CONTINUE:
+        st.query_params["pdga_no"] = pdga_no
         try:
             player = Player(pdga_no)
             st.session_state["player"] = player
