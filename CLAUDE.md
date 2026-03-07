@@ -19,8 +19,6 @@ A Streamlit web app that calculates unofficial PDGA (Professional Disc Golf Asso
 - **`classes/player.py`** — `Player` class that scrapes pdga.com for a player's info, ratings detail, and recent events. Fetches from three sources: player home page, `/details` page, and individual tournament pages for new (not-yet-rated) tournaments.
 - **`utils/rating_calc.py`** — `calculate_rating()` implements the PDGA rating algorithm: 12-month window, last 25% double-weighted, outlier drop at 2.5 SD (or 100 points) below average, excludes XM tier.
 - **`utils/figs.py`** — Plotly chart builders: rating history bar chart with 5/15 moving averages, and division box plot.
-- **`utils/pdga_scraper.py`** — Older/unused version of data fetching, superseded by `Player` class.
-- **`pages_NOTREADY/`** — Incomplete future pages (not active).
 
 ## Key Technical Details
 

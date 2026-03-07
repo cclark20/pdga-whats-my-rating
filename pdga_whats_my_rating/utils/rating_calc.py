@@ -1,6 +1,7 @@
-import pandas as pd
-import numpy as np
 import math
+
+import numpy as np
+import pandas as pd
 import streamlit as st
 
 
@@ -28,7 +29,7 @@ def calculate_rating(df, current_rating):
     df.loc[valid_dates, "evaluated"] = "Yes"
 
     # double the last 25%
-    num_double = round((len(df[valid_dates]) * 0.25))
+    num_double = round(len(df[valid_dates]) * 0.25)
     df.loc[: (num_double - 1), "weight"] = 2
 
     # remove outliers
@@ -36,7 +37,7 @@ def calculate_rating(df, current_rating):
     avg = df.loc[valid_dates, "rating"].mean()
     if (2.5 * std) < 100:
         threshold = (
-            math.ceil(avg - math.floor((2.5 * std))) + 5
+            math.ceil(avg - math.floor(2.5 * std)) + 5
         )  # +5 is a buffer that I think pdga does
     else:
         threshold = math.ceil(avg - 100)
