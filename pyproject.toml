@@ -1,18 +1,11 @@
-[tool.poetry]
+[project]
 name = "pdga-whats-my-rating"
 version = "0.1.0"
-description = ""
-authors = ["Casey Clark <cclark@captechconsulting.com>"]
+description = "Unofficial PDGA player rating calculator"
 readme = "README.md"
-package-mode = false
-
-[tool.poetry.dependencies]
-python = "^3.12"
-streamlit = "^1.33.0"
-streamlit-extras = "^0.4.2"
-plotly = "^5.22.0"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires-python = ">=3.12"
+dependencies = [
+    "streamlit>=1.33.0",
+    "streamlit-extras>=0.4.2",
+    "plotly>=5.22.0",
+]
