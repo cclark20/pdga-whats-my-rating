@@ -1,10 +1,8 @@
-import requests
-import pandas as pd
 from io import StringIO
-import streamlit as st
-from bs4 import BeautifulSoup
 
-from classes.player import Player
+import pandas as pd
+import requests
+import streamlit as st
 
 
 # TODO
@@ -41,7 +39,7 @@ def get_data(pdga_no):
     response = requests.get(URL)
     try:
         df = pd.read_html(StringIO(response.text))[0]
-    except:
+    except ValueError:
         return None
 
     df = df[
