@@ -12,6 +12,7 @@ A Streamlit web app that calculates unofficial PDGA (Professional Disc Golf Asso
 - **Run the app:** `cd pdga_whats_my_rating && uv run streamlit run Home.py`
 - **Lint:** `uv run ruff check .`
 - **Format:** `uv run ruff format .`
+- **Test:** `uv run pytest`
 
 ## Architecture
 
@@ -28,5 +29,6 @@ A Streamlit web app that calculates unofficial PDGA (Professional Disc Golf Asso
 - Streamlit caching (`@st.cache_data`) is used on `calculate_rating` and `get_data`
 - Imports in `Home.py` use relative-style paths (e.g., `from utils.rating_calc import ...`) — the app must be run from inside the `pdga_whats_my_rating/` directory
 - Query param `pdga_no` enables bookmarkable player lookups
-- No test suite exists yet (`tests/` contains only `__init__.py`)
+- Tests use pytest with `pythonpath = ["pdga_whats_my_rating"]` in pyproject.toml
+- `tests/conftest.py` patches `st.cache_data` to a no-op for test compatibility
 - The rating algorithm's +5 buffer on the outlier threshold is an approximation of PDGA's actual calculation
