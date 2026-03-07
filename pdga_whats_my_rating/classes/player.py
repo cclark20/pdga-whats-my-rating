@@ -1,7 +1,8 @@
+from io import StringIO
+
+import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
-from io import StringIO
 
 
 class Player:
@@ -51,7 +52,7 @@ class Player:
         response.raise_for_status()
         try:
             df = pd.read_html(StringIO(response.text))[0]
-        except:
+        except ValueError:
             self.ratings_detail_df = None
             return
 
@@ -134,7 +135,6 @@ class Player:
                     # print(df[df["PDGA#"] == int(self.pdga_no)])
                     for i, rating in enumerate(ratings):
                         if df[df["PDGA#"] == int(self.pdga_no)][rating].values[0] > 0:
-
                             row_df = pd.DataFrame(
                                 [
                                     {

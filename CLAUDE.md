@@ -10,6 +10,8 @@ A Streamlit web app that calculates unofficial PDGA (Professional Disc Golf Asso
 
 - **Install dependencies:** `uv sync`
 - **Run the app:** `cd pdga_whats_my_rating && uv run streamlit run Home.py`
+- **Lint:** `uv run ruff check .`
+- **Format:** `uv run ruff format .`
 
 ## Architecture
 
