@@ -1,5 +1,7 @@
 import logging
 import re
+import time
+from collections.abc import Callable
 from io import StringIO
 
 import pandas as pd
@@ -9,11 +11,38 @@ from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 10
+MAX_RETRIES = 4
+INITIAL_BACKOFF = 2  # seconds
+MAX_BACKOFF = 30  # seconds
+
+
+def _request_with_retry(
+    url: str,
+    *,
+    timeout: int = REQUEST_TIMEOUT,
+    on_retry: Callable[[int, float], None] | None = None,
+) -> requests.Response:
+    """Make a GET request with exponential backoff on 429 responses."""
+    last_response = None
+    for attempt in range(MAX_RETRIES + 1):
+        response = requests.get(url, timeout=timeout)
+        if response.status_code != 429:
+            response.raise_for_status()
+            return response
+        last_response = response
+        if attempt < MAX_RETRIES:
+            wait_time = min(INITIAL_BACKOFF * 2**attempt, MAX_BACKOFF)
+            if on_retry is not None:
+                on_retry(attempt, wait_time)
+            time.sleep(wait_time)
+    last_response.raise_for_status()
+    return last_response  # unreachable, but satisfies type checker
 
 
 class Player:
-    def __init__(self, pdga_no: int):
+    def __init__(self, pdga_no: int, *, on_retry=None):
         self.pdga_no = pdga_no
+        self._on_retry = on_retry
         self.name = None
         self.location = None
         self.cur_rating = None
@@ -34,8 +63,7 @@ class Player:
 
     def _fetch_basic_info(self):
         URL = f"https://www.pdga.com/player/{self.pdga_no}"
-        response = requests.get(URL, timeout=REQUEST_TIMEOUT)
-        response.raise_for_status()
+        response = _request_with_retry(URL, on_retry=self._on_retry)
         soup = BeautifulSoup(response.text, "html.parser")
         self.home_soup = soup
 
@@ -67,8 +95,7 @@ class Player:
 
     def _fetch_ratings_detail(self):
         URL = f"https://www.pdga.com/player/{self.pdga_no}/details"
-        response = requests.get(URL, timeout=REQUEST_TIMEOUT)
-        response.raise_for_status()
+        response = _request_with_retry(URL, on_retry=self._on_retry)
         try:
             df = pd.read_html(StringIO(response.text))[0]
         except ValueError:
@@ -142,10 +169,9 @@ class Player:
             tourn_name = tourns.loc[t, "Tournament"]
             try:
                 href = soup.find("a", string=tourn_name)["href"]
-                tour_page = requests.get(
-                    f"https://www.pdga.com{href}", timeout=REQUEST_TIMEOUT
+                tour_page = _request_with_retry(
+                    f"https://www.pdga.com{href}", on_retry=self._on_retry
                 )
-                tour_page.raise_for_status()
                 tour_soup = BeautifulSoup(tour_page.text, "html.parser")
 
                 for table in tour_soup.find_all("table")[1:]:
