@@ -278,9 +278,8 @@ def show_player(pdga_no):
 
     st.markdown(
         "---\n"
-        "This app is always free."
-        " [☕ Buy me a coffee](https://buymeacoffee.com/cclark)"
-        " if you find it useful!"
+        "This app will always be free. If you want to support,"
+        " [☕ buy me a coffee!](https://buymeacoffee.com/cclark)"
     )
 
 
