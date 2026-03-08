@@ -154,6 +154,22 @@ def show_player(pdga_no):
                 " since your last official rating."
             )
 
+    # show rounds dropped as outliers (evaluated but not used)
+    outliers = df[(df["evaluated"] == "Yes") & (df["used"] == "No")]
+    if not outliers.empty:
+        st.markdown("#### Rounds Dropped as Outliers")
+        st.caption(
+            "These rounds are within the 12-month window but were"
+            " dropped because their rating is at or below the"
+            f" drop threshold (~{int(drop_thres)})."
+        )
+        st.dataframe(
+            outliers[["tournament", "date", "round", "rating", "tier"]],
+            hide_index=True,
+        )
+    else:
+        st.markdown("**No rounds dropped as outliers.**")
+
     # graphs
     col1, col2 = st.columns(2)
 

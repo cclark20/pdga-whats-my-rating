@@ -211,6 +211,78 @@ class TestDroppedRounds:
         assert any("No rounds dropped" in m for m in markdown_texts)
 
 
+class TestOutlierRounds:
+    def _run_success(self, **kwargs):
+        mock_player = _make_mock_player(**kwargs)
+        with (
+            patch(
+                "classes.player.Player.__init__",
+                lambda self, *a, **kw: None,
+            ),
+            patch(
+                "classes.player.Player.__new__",
+                lambda cls, *a, **kw: mock_player,
+            ),
+        ):
+            return _run_with_input("27523")
+
+    def _make_df_with_outlier(self):
+        """Build a df where one round is far below the rest and will be
+        dropped as an outlier."""
+        rows = []
+        for i in range(10):
+            rows.append(
+                {
+                    "tournament": f"Tournament {i}",
+                    "date": pd.Timestamp("2025-06-01") - pd.DateOffset(months=i),
+                    "tier": "A",
+                    "division": "MPO",
+                    "round": 1,
+                    "rating": 1000,
+                }
+            )
+        # One very low round that should be dropped as an outlier
+        rows.append(
+            {
+                "tournament": "Bad Day",
+                "date": pd.Timestamp("2025-03-15"),
+                "tier": "A",
+                "division": "MPO",
+                "round": 1,
+                "rating": 700,
+            }
+        )
+        return pd.DataFrame(rows)
+
+    def test_outlier_rounds_displayed(self):
+        df = self._make_df_with_outlier()
+        at = self._run_success(fixture_file=None)
+        # Re-run with our custom df
+        mock_player = _make_mock_player()
+        mock_player.ratings_detail_df = df
+        with (
+            patch(
+                "classes.player.Player.__init__",
+                lambda self, *a, **kw: None,
+            ),
+            patch(
+                "classes.player.Player.__new__",
+                lambda cls, *a, **kw: mock_player,
+            ),
+        ):
+            at = _run_with_input("27523")
+        assert not at.exception
+        markdown_texts = [m.value for m in at.markdown]
+        assert any("Dropped as Outliers" in m for m in markdown_texts)
+
+    def test_no_outliers_message(self):
+        """When all rounds are similar, no outlier section appears."""
+        at = self._run_success()
+        assert not at.exception
+        markdown_texts = [m.value for m in at.markdown]
+        assert any("No rounds dropped as outliers" in m for m in markdown_texts)
+
+
 class TestQueryParams:
     def test_auto_loads_from_query_param(self):
         mock_player = _make_mock_player()
