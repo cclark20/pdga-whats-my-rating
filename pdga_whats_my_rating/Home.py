@@ -1,3 +1,4 @@
+import os
 from urllib.parse import quote
 
 import pandas as pd
@@ -7,16 +8,21 @@ from classes.player import Player
 from utils import figs
 from utils.rating_calc import calculate_rating
 
-_EMAIL = "caseyclark20@gmail.com"
+_EMAIL = os.environ.get("CONTACT_EMAIL", "")
 
 
 def _mailto(subject, body=""):
+    if not _EMAIL:
+        return None
     return f"mailto:{_EMAIL}?subject={quote(subject)}&body={quote(body)}"
 
 
 st.set_page_config(page_title="What's My Rating?", page_icon="🥏", layout="wide")
-_feedback_subject = quote("What's My Rating - Feedback")
-st.sidebar.markdown(f"[📬 Send Feedback](mailto:{_EMAIL}?subject={_feedback_subject})")
+if _EMAIL:
+    _feedback_subject = quote("What's My Rating - Feedback")
+    st.sidebar.markdown(
+        f"[📬 Send Feedback](mailto:{_EMAIL}?subject={_feedback_subject})"
+    )
 
 # seed widget state from query param on first load only
 auto_load = False
@@ -50,6 +56,11 @@ def show_player(pdga_no):
                 " Please wait a minute and try again."
             )
         else:
+            msg = (
+                f"Player info not available for PDGA number"
+                f" {pdga_no}.\n"
+                " Are you sure this is a valid PDGA number?"
+            )
             status = e.response.status_code if e.response is not None else "unknown"
             link = _mailto(
                 f"What's My Rating - Error (PDGA #{pdga_no})",
@@ -57,25 +68,24 @@ def show_player(pdga_no):
                 f"Error: HTTP {status}\n\n"
                 "Please describe what happened:\n",
             )
-            st.error(
-                f"Player info not available for PDGA number"
-                f" {pdga_no}.\n"
-                " Are you sure this is a valid PDGA number?"
-                f" If so, please [let me know]({link})!"
-            )
+            if link:
+                msg += f" If so, please [let me know]({link})!"
+            st.error(msg)
         print(e)
         return
     except Exception as e:
+        msg = (
+            f"Player info not available for PDGA number"
+            f" {pdga_no}.\n"
+            " Are you sure this is a valid PDGA number?"
+        )
         link = _mailto(
             f"What's My Rating - Error (PDGA #{pdga_no})",
             f"PDGA Number: {pdga_no}\n\nPlease describe what happened:\n",
         )
-        st.error(
-            f"Player info not available for PDGA number"
-            f" {pdga_no}.\n"
-            " Are you sure this is a valid PDGA number?"
-            f" If so, please [let me know]({link})!"
-        )
+        if link:
+            msg += f" If so, please [let me know]({link})!"
+        st.error(msg)
         print(e)
         return
 
@@ -129,13 +139,15 @@ def show_player(pdga_no):
             f"Rounds Evaluated: {n_evaluated}\n"
             f"Rounds Used: {n_used}\n",
         )
-        col1.markdown(
+        msg = (
             f"*You have no new rounds, so our calculation"
             f" should match your official rating exactly,"
             f" but we're off by {diff}."
-            f" Please [let me know]({link})"
-            f" so I can improve the algorithm!*"
         )
+        if link:
+            msg += f" Please [let me know]({link}) so I can improve the algorithm!"
+        msg += "*"
+        col1.markdown(msg)
     col2.metric(
         f"Official Rating {player.rating_date}",
         official_rating,
