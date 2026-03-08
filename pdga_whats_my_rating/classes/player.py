@@ -92,6 +92,7 @@ class Player:
                 "Included": "used",
             }
         )
+        self.ratings_detail_df["round"] = self.ratings_detail_df["round"].astype(str)
 
     def _fetch_recent_events(self):
         soup = self.home_soup
@@ -177,9 +178,12 @@ class Player:
                 else:
                     continue
             except Exception:
-                logger.warning("Failed to fetch tournament: %s", tourn_name)
+                logger.exception("Failed to fetch tournament: %s", tourn_name)
                 continue
 
         if len(new_rows) > 0:
             new_df = pd.concat(new_rows)
             self.ratings_detail_df = pd.concat([self.ratings_detail_df, new_df])
+            self.ratings_detail_df["round"] = self.ratings_detail_df["round"].astype(
+                str
+            )

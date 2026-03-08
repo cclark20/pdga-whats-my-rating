@@ -83,7 +83,7 @@ class TestInvalidInput:
         with patch("classes.player.Player.__init__", side_effect=exc):
             at = _run_with_input("99999")
         assert len(at.error) == 1
-        assert "player info not available" in at.error[0].value
+        assert "Player info not available" in at.error[0].value
 
     def test_http_error_rate_limit(self):
         import requests

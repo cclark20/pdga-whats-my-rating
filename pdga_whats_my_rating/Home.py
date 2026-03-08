@@ -1,3 +1,6 @@
+import logging
+from urllib.parse import quote
+
 import pandas as pd
 import requests
 import streamlit as st
@@ -5,7 +8,26 @@ from classes.player import Player
 from utils import figs
 from utils.rating_calc import calculate_rating
 
+logger = logging.getLogger(__name__)
+
+try:
+    _EMAIL = st.secrets["CONTACT_EMAIL"]
+except (KeyError, FileNotFoundError):
+    _EMAIL = ""
+
+
+def _mailto(subject, body=""):
+    if not _EMAIL:
+        return None
+    return f"mailto:{_EMAIL}?subject={quote(subject)}&body={quote(body)}"
+
+
 st.set_page_config(page_title="What's My Rating?", page_icon="🥏", layout="wide")
+if _EMAIL:
+    _feedback_subject = quote("What's My Rating - Feedback")
+    st.sidebar.markdown(
+        f"[📬 Send Feedback](mailto:{_EMAIL}?subject={_feedback_subject})"
+    )
 
 # seed widget state from query param on first load only
 auto_load = False
@@ -39,24 +61,37 @@ def show_player(pdga_no):
                 " Please wait a minute and try again."
             )
         else:
-            st.error(
-                f"player info not available for pdga number"
-                f" {pdga_no}\n"
+            msg = (
+                f"Player info not available for PDGA number"
+                f" {pdga_no}.\n"
                 " Are you sure this is a valid PDGA number?"
-                " If this is a valid PDGA number,"
-                " please reach out to me! Thanks."
             )
-        print(e)
+            status = e.response.status_code if e.response is not None else "unknown"
+            link = _mailto(
+                f"What's My Rating - Error (PDGA #{pdga_no})",
+                f"PDGA Number: {pdga_no}\n"
+                f"Error: HTTP {status}\n\n"
+                "Please describe what happened:\n",
+            )
+            if link:
+                msg += f" If so, please [let me know]({link})!"
+            st.error(msg)
+        logger.exception("Failed to load player %s", pdga_no)
         return
-    except Exception as e:
-        st.error(
-            f"player info not available for pdga number"
-            f" {pdga_no}\n"
+    except Exception:
+        msg = (
+            f"Player info not available for PDGA number"
+            f" {pdga_no}.\n"
             " Are you sure this is a valid PDGA number?"
-            " If this is a valid PDGA number,"
-            " please reach out to me! Thanks."
         )
-        print(e)
+        link = _mailto(
+            f"What's My Rating - Error (PDGA #{pdga_no})",
+            f"PDGA Number: {pdga_no}\n\nPlease describe what happened:\n",
+        )
+        if link:
+            msg += f" If so, please [let me know]({link})!"
+        st.error(msg)
+        logger.exception("Failed to load player %s", pdga_no)
         return
 
     if player.ratings_detail_df is None:
@@ -94,21 +129,36 @@ def show_player(pdga_no):
         calc_rating,
         (calc_rating - official_rating),
     )
-    if player.new_tournaments is None:
-        col1.markdown(
-            "*If you have no new rounds and this is > 2 points"
-            " off your official rating,"
-            " please reach out to me!*"
+    eval_mask = df["evaluated"] == "Yes"
+    n_evaluated = len(df[eval_mask])
+    n_used = len(df[df["used"] == "Yes"])
+
+    if player.new_tournaments is None and calc_rating != official_rating:
+        diff = abs(calc_rating - official_rating)
+        link = _mailto(
+            f"What's My Rating - Rating Discrepancy (PDGA #{pdga_no})",
+            f"PDGA Number: {pdga_no}\n"
+            f"Calculated Rating: {calc_rating}\n"
+            f"Official Rating: {official_rating}\n"
+            f"Difference: {diff}\n"
+            f"Rounds Evaluated: {n_evaluated}\n"
+            f"Rounds Used: {n_used}\n",
         )
+        msg = (
+            f"*You have no new rounds, so our calculation"
+            f" should match your official rating exactly,"
+            f" but we're off by {diff}."
+        )
+        if link:
+            msg += f" Please [let me know]({link}) so I can improve the algorithm!"
+        msg += "*"
+        col1.markdown(msg)
     col2.metric(
         f"Official Rating {player.rating_date}",
         official_rating,
         player.rating_change,
     )
 
-    eval_mask = df["evaluated"] == "Yes"
-    n_evaluated = len(df[eval_mask])
-    n_used = len(df[df["used"] == "Yes"])
     avg_rating = df.loc[eval_mask, "rating"].mean()
     std_dev = df.loc[eval_mask, "rating"].std(ddof=0)
 
