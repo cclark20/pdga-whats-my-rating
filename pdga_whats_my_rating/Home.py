@@ -111,64 +111,90 @@ def show_player(pdga_no):
     n_used = len(df[df["used"] == "Yes"])
     avg_rating = df.loc[eval_mask, "rating"].mean()
     std_dev = df.loc[eval_mask, "rating"].std(ddof=0)
-    new_tourns = (
-        ", ".join(player.new_tournaments["Tournament"].values.tolist())
-        if player.new_tournaments is not None
-        else "None"
-    )
 
-    st.markdown(f"""
-#### other stuff
+    with st.expander("Rating Explanation"):
+        st.markdown(f"""
 - **Number of rounds evaluated:** {n_evaluated}
 - **Number of rounds used:** {n_used}
 - **Raw Average Rating:** {avg_rating:.2f}
 - **Std Dev:** {std_dev:.2f}
 - **Drop Threshold:** ~{int(drop_thres)} \
 *((average rating - 2.5 SD) + 5) or (average rating - 100)*
-- **NEW TOURNAMENTS:** {new_tourns}
-    """)
+        """)
 
-    # show rounds that were in PDGA's evaluation window but dropped from ours
-    if has_original_evaluated:
-        merged = df.merge(
-            original_evaluated,
-            on=["tournament", "date", "round"],
-            how="left",
-        )
-        dropped = merged[
-            (merged["pdga_evaluated"] == "Yes") & (merged["evaluated"] == "No")
-        ]
-        if not dropped.empty:
-            st.markdown("#### Rounds Dropped from 12-Month Window")
+        # new tournaments
+        st.markdown("#### New Tournaments")
+        if player.new_tournaments is not None:
             st.caption(
-                "These rounds were in your last official rating"
-                " but have since fallen outside the 12-month window."
+                "These tournaments are not yet included in your official rating."
             )
             st.dataframe(
-                dropped[["tournament", "date", "round", "rating", "tier"]],
+                player.new_tournaments,
+                hide_index=True,
+            )
+        else:
+            st.markdown("**No new tournaments** since your last official rating.")
+
+        # double-weighted rounds
+        st.markdown("#### Double-Weighted Rounds")
+        double_weighted = df[df["weight"] == 2]
+        if not double_weighted.empty:
+            st.caption(
+                f"The most recent 25% of evaluated rounds"
+                f" ({len(double_weighted)} rounds) count double"
+                f" in the rating calculation."
+            )
+            st.dataframe(
+                double_weighted[["tournament", "date", "round", "rating", "tier"]],
                 hide_index=True,
             )
         else:
             st.markdown(
-                "**No rounds dropped from the 12-month window**"
-                " since your last official rating."
+                "**No rounds are double-weighted** (fewer than 9 evaluated rounds)."
             )
 
-    # show rounds dropped as outliers (evaluated but not used)
-    outliers = df[(df["evaluated"] == "Yes") & (df["used"] == "No")]
-    if not outliers.empty:
-        st.markdown("#### Rounds Dropped as Outliers")
-        st.caption(
-            "These rounds are within the 12-month window but were"
-            " dropped because their rating is at or below the"
-            f" drop threshold (~{int(drop_thres)})."
-        )
-        st.dataframe(
-            outliers[["tournament", "date", "round", "rating", "tier"]],
-            hide_index=True,
-        )
-    else:
-        st.markdown("**No rounds dropped as outliers.**")
+        # rounds dropped from 12-month window
+        if has_original_evaluated:
+            merged = df.merge(
+                original_evaluated,
+                on=["tournament", "date", "round"],
+                how="left",
+            )
+            dropped = merged[
+                (merged["pdga_evaluated"] == "Yes") & (merged["evaluated"] == "No")
+            ]
+            if not dropped.empty:
+                st.markdown("#### Rounds Dropped from 12-Month Window")
+                st.caption(
+                    "These rounds were in your last official rating"
+                    " but have since fallen outside the 12-month"
+                    " window."
+                )
+                st.dataframe(
+                    dropped[["tournament", "date", "round", "rating", "tier"]],
+                    hide_index=True,
+                )
+            else:
+                st.markdown(
+                    "**No rounds dropped from the 12-month window**"
+                    " since your last official rating."
+                )
+
+        # rounds dropped as outliers
+        outliers = df[(df["evaluated"] == "Yes") & (df["used"] == "No")]
+        if not outliers.empty:
+            st.markdown("#### Rounds Dropped as Outliers")
+            st.caption(
+                "These rounds are within the 12-month window but"
+                " were dropped because their rating is at or below"
+                f" the drop threshold (~{int(drop_thres)})."
+            )
+            st.dataframe(
+                outliers[["tournament", "date", "round", "rating", "tier"]],
+                hide_index=True,
+            )
+        else:
+            st.markdown("**No rounds dropped as outliers.**")
 
     # graphs
     col1, col2 = st.columns(2)

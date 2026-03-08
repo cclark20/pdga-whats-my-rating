@@ -137,7 +137,7 @@ class TestSuccessfulLookup:
         assert not at.exception
         markdown_texts = [m.value for m in at.markdown]
         assert any("Number of rounds evaluated" in m for m in markdown_texts)
-        assert any("NEW TOURNAMENTS:** None" in m for m in markdown_texts)
+        assert any("No new tournaments" in m for m in markdown_texts)
 
     def test_no_ratings_detail(self):
         at = self._run_success(fixture_file=None)
@@ -209,6 +209,26 @@ class TestDroppedRounds:
         assert not at.exception
         markdown_texts = [m.value for m in at.markdown]
         assert any("No rounds dropped" in m for m in markdown_texts)
+
+
+class TestDoubleWeightedRounds:
+    def test_double_weighted_rounds_displayed(self):
+        """The fixture has enough rounds for double-weighting."""
+        mock_player = _make_mock_player()
+        with (
+            patch(
+                "classes.player.Player.__init__",
+                lambda self, *a, **kw: None,
+            ),
+            patch(
+                "classes.player.Player.__new__",
+                lambda cls, *a, **kw: mock_player,
+            ),
+        ):
+            at = _run_with_input("27523")
+        assert not at.exception
+        markdown_texts = [m.value for m in at.markdown]
+        assert any("Double-Weighted Rounds" in m for m in markdown_texts)
 
 
 class TestOutlierRounds:
