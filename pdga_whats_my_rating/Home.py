@@ -125,17 +125,17 @@ if submit or auto_load:
 
             # rating w moving avg
             fig1 = figs.mavg_chart(df)
-            col1.plotly_chart(fig1, use_container_width=True)
+            col1.plotly_chart(fig1, width="stretch")
 
             # boxplots
             fig2 = figs.div_box_chart(df)
-            col2.plotly_chart(fig2, use_container_width=True)
+            col2.plotly_chart(fig2, width="stretch")
 
             st.subheader("Rating Detail")
             st.dataframe(
                 df.drop(columns=["mavg_5", "mavg_15"]),
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
             )
 
         else:
