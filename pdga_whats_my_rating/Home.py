@@ -53,7 +53,13 @@ def show_player(pdga_no):
 
     st.query_params["pdga_no"] = pdga_no
     try:
-        player = Player(pdga_no)
+        player = Player(
+            pdga_no,
+            on_retry=lambda attempt, wait: st.warning(
+                f"PDGA.com rate limit hit. Retrying in {wait:.0f}s..."
+                f" (attempt {attempt + 1})"
+            ),
+        )
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code == 429:
             st.error(
