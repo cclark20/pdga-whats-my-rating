@@ -1,3 +1,4 @@
+import logging
 from urllib.parse import quote
 
 import pandas as pd
@@ -6,6 +7,8 @@ import streamlit as st
 from classes.player import Player
 from utils import figs
 from utils.rating_calc import calculate_rating
+
+logger = logging.getLogger(__name__)
 
 try:
     _EMAIL = st.secrets["CONTACT_EMAIL"]
@@ -73,9 +76,9 @@ def show_player(pdga_no):
             if link:
                 msg += f" If so, please [let me know]({link})!"
             st.error(msg)
-        print(e)
+        logger.exception("Failed to load player %s", pdga_no)
         return
-    except Exception as e:
+    except Exception:
         msg = (
             f"Player info not available for PDGA number"
             f" {pdga_no}.\n"
@@ -88,7 +91,7 @@ def show_player(pdga_no):
         if link:
             msg += f" If so, please [let me know]({link})!"
         st.error(msg)
-        print(e)
+        logger.exception("Failed to load player %s", pdga_no)
         return
 
     if player.ratings_detail_df is None:
