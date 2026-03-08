@@ -1,8 +1,14 @@
+import logging
+import re
 from io import StringIO
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
+
+REQUEST_TIMEOUT = 10
 
 
 class Player:
@@ -27,7 +33,7 @@ class Player:
 
     def _fetch_basic_info(self):
         URL = f"https://www.pdga.com/player/{self.pdga_no}"
-        response = requests.get(URL)
+        response = requests.get(URL, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         self.home_soup = soup
@@ -38,7 +44,9 @@ class Player:
         self.location = location.text.split(": ")[1] if location else None
 
         cur_rating = soup.find("li", {"class": "current-rating"})
-        self.cur_rating = int(cur_rating.contents[2]) if cur_rating else None
+        if cur_rating:
+            match = re.search(r"\d+", cur_rating.get_text())
+            self.cur_rating = int(match.group()) if match else None
 
         rating_change = soup.find("a", {"class": "rating-difference"})
         self.rating_change = rating_change.text if rating_change else None
@@ -48,7 +56,7 @@ class Player:
 
     def _fetch_ratings_detail(self):
         URL = f"https://www.pdga.com/player/{self.pdga_no}/details"
-        response = requests.get(URL)
+        response = requests.get(URL, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         try:
             df = pd.read_html(StringIO(response.text))[0]
@@ -97,10 +105,13 @@ class Player:
         df = pd.concat(dfs)
         df = df.dropna(subset="Points")
 
-        min_date = pd.to_datetime(
-            self.rating_date.split()[-1].strip(")"),
-            format="%d-%b-%Y",
-        )
+        date_match = re.search(r"\d{2}-[A-Za-z]{3}-\d{4}", self.rating_date)
+        if not date_match:
+            raise ValueError(
+                f"Could not parse rating date from '{self.rating_date}'."
+                " PDGA may have changed their date format."
+            )
+        min_date = pd.to_datetime(date_match.group(), format="%d-%b-%Y")
 
         df["last_date"] = df["Dates"].str.split(" to ").str[-1]
         df["last_date"] = pd.to_datetime(df["last_date"], format="%d-%b-%Y")
@@ -116,48 +127,57 @@ class Player:
 
         new_rows = []
         for t in range(len(tourns)):
-            href = soup.find("a", string=tourns.loc[t, "Tournament"])["href"]
-            tour_page = requests.get(f"https://www.pdga.com{href}")
-            tour_page.raise_for_status()
-            tour_soup = BeautifulSoup(tour_page.text, "html.parser")
+            tourn_name = tourns.loc[t, "Tournament"]
+            try:
+                href = soup.find("a", string=tourn_name)["href"]
+                tour_page = requests.get(
+                    f"https://www.pdga.com{href}", timeout=REQUEST_TIMEOUT
+                )
+                tour_page.raise_for_status()
+                tour_soup = BeautifulSoup(tour_page.text, "html.parser")
 
-            for table in tour_soup.find_all("table")[1:]:
-                df = pd.read_html(StringIO(str(table)))[0]
-                if "PDGA#" not in df:
-                    df["PDGA#"] = 0
-                df["PDGA#"] = df["PDGA#"].fillna(0).astype(int)
-                if int(self.pdga_no) in df["PDGA#"].values.tolist():
-                    ratings = [col for col in df if col.startswith("Unnamed")]
+                for table in tour_soup.find_all("table")[1:]:
+                    df = pd.read_html(StringIO(str(table)))[0]
+                    if "PDGA#" not in df:
+                        df["PDGA#"] = 0
+                    df["PDGA#"] = df["PDGA#"].fillna(0).astype(int)
+                    if int(self.pdga_no) in df["PDGA#"].values.tolist():
+                        ratings = [col for col in df if col.startswith("Unnamed")]
 
-                    # print(df[df["PDGA#"] == int(self.pdga_no)])
-                    for i, rating in enumerate(ratings):
-                        if df[df["PDGA#"] == int(self.pdga_no)][rating].values[0] > 0:
-                            row_df = pd.DataFrame(
-                                [
-                                    {
-                                        "tournament": tourns.loc[t, "Tournament"],
-                                        "date": tourns.loc[t, "Dates"].split(" to ")[
-                                            -1
-                                        ],
-                                        "tier": tourns.loc[t, "Tier"],
-                                        "division": href.split("#")[-1],
-                                        "round": i + 1,
-                                        "rating": int(
-                                            df[df["PDGA#"] == int(self.pdga_no)][
-                                                rating
-                                            ].values[0]
-                                        ),
-                                        "evaluated": None,
-                                        "used": None,
-                                        "weight": None,
-                                    }
-                                ]
-                            )
+                        for i, rating in enumerate(ratings):
+                            if (
+                                df[df["PDGA#"] == int(self.pdga_no)][rating].values[0]
+                                > 0
+                            ):
+                                row_df = pd.DataFrame(
+                                    [
+                                        {
+                                            "tournament": tourn_name,
+                                            "date": tourns.loc[t, "Dates"].split(
+                                                " to "
+                                            )[-1],
+                                            "tier": tourns.loc[t, "Tier"],
+                                            "division": href.split("#")[-1],
+                                            "round": i + 1,
+                                            "rating": int(
+                                                df[df["PDGA#"] == int(self.pdga_no)][
+                                                    rating
+                                                ].values[0]
+                                            ),
+                                            "evaluated": None,
+                                            "used": None,
+                                            "weight": None,
+                                        }
+                                    ]
+                                )
 
-                            new_rows.append(row_df)
+                                new_rows.append(row_df)
 
-                    break
-            else:
+                        break
+                else:
+                    continue
+            except Exception:
+                logger.warning("Failed to fetch tournament: %s", tourn_name)
                 continue
 
         if len(new_rows) > 0:
