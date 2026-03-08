@@ -178,7 +178,7 @@ class Player:
                 else:
                     continue
             except Exception:
-                logger.warning("Failed to fetch tournament: %s", tourn_name)
+                logger.exception("Failed to fetch tournament: %s", tourn_name)
                 continue
 
         if len(new_rows) > 0:
