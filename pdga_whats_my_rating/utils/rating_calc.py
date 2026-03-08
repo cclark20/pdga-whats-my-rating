@@ -33,7 +33,8 @@ def calculate_rating(df, current_rating):
     df.loc[: (num_double - 1), "weight"] = 2
 
     # iteratively remove outliers — dropping a round shifts the
-    # avg/std, which may expose additional outliers
+    # avg/std, which may expose additional outliers.
+    # 10 is just a safety cap; typically converges in 2-3 passes.
     threshold = 0
     for _ in range(10):
         used_mask = df["weight"] > 0
