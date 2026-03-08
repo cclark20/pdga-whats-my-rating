@@ -92,6 +92,7 @@ class Player:
                 "Included": "used",
             }
         )
+        self.ratings_detail_df["round"] = self.ratings_detail_df["round"].astype(int)
 
     def _fetch_recent_events(self):
         soup = self.home_soup
