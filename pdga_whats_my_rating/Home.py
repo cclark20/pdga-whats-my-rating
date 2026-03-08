@@ -28,28 +28,6 @@ if _EMAIL:
     st.sidebar.markdown(
         f"[📬 Send Feedback](mailto:{_EMAIL}?subject={_feedback_subject})"
     )
-st.markdown(
-    """
-    <a href="https://buymeacoffee.com/cclark" target="_blank"
-       style="
-         position: fixed;
-         bottom: 18px;
-         right: 18px;
-         background-color: #40DCA5;
-         color: #000000;
-         padding: 10px 18px;
-         border-radius: 24px;
-         text-decoration: none;
-         font-weight: bold;
-         font-size: 14px;
-         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-         z-index: 9999;
-       ">
-       ☕ Buy Me a Coffee
-    </a>
-    """,
-    unsafe_allow_html=True,
-)
 
 # seed widget state from query param on first load only
 auto_load = False
@@ -296,6 +274,13 @@ def show_player(pdga_no):
         df.drop(columns=["mavg_5", "mavg_15"]),
         hide_index=True,
         width="stretch",
+    )
+
+    st.markdown(
+        "---\n"
+        "This app is always free."
+        " [☕ Buy me a coffee](https://buymeacoffee.com/cclark)"
+        " if you find it useful!"
     )
 
 
