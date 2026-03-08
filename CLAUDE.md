@@ -21,6 +21,10 @@ A Streamlit web app that calculates unofficial PDGA (Professional Disc Golf Asso
 - **`utils/rating_calc.py`** — `calculate_rating()` implements the PDGA rating algorithm: 12-month window, last 25% double-weighted, outlier drop at 2.5 SD (or 100 points) below average, excludes XM tier.
 - **`utils/figs.py`** — Plotly chart builders: rating history bar chart with 5/15 moving averages, and division box plot.
 
+## Workflow
+
+- Always run `uv run ruff check .` and `uv run ruff format --check .` before committing/pushing code. Fix any issues before pushing.
+
 ## Key Technical Details
 
 - Python 3.12+, managed with uv
