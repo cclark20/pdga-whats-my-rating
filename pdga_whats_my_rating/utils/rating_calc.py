@@ -12,6 +12,8 @@ def calculate_rating(df):
     last 25% are worth double
     2.5 SD below rating is dropped
     """
+    df = df.copy()
+    df["date"] = pd.to_datetime(df["date"], format="mixed")
     df = df.sort_values(by=["date", "round"], ascending=[False, True]).reset_index(
         drop=True
     )
@@ -60,16 +62,9 @@ def calculate_rating(df):
     avg1 = 5
     avg2 = 15
 
-    df["mavg_5"] = (
-        df.sort_values(by=["date", "round"], ascending=True)
-        .rating.rolling(avg1, min_periods=1)
-        .mean()
-    )
-    df["mavg_15"] = (
-        df.sort_values(by=["date", "round"], ascending=True)
-        .rating.rolling(avg2, min_periods=1)
-        .mean()
-    )
+    df_asc = df.sort_values(by=["date", "round"], ascending=True)
+    df["mavg_5"] = df_asc.rating.rolling(avg1, min_periods=1).mean()
+    df["mavg_15"] = df_asc.rating.rolling(avg2, min_periods=1).mean()
 
     # rating
     if df["weight"].sum() == 0:

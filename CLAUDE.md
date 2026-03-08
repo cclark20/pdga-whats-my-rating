@@ -23,6 +23,7 @@ A Streamlit web app that calculates unofficial PDGA (Professional Disc Golf Asso
 
 ## Workflow
 
+- **Never commit or push directly to main.** Always create a feature branch, push it, and open a PR linked to the relevant issue(s) (use `Fixes #N` in the PR body).
 - Always run `uv run ruff check .` and `uv run ruff format --check .` before committing/pushing code. Fix any issues before pushing.
 
 ## Key Technical Details

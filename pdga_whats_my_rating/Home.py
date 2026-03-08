@@ -1,4 +1,3 @@
-import pandas as pd
 import requests
 import streamlit as st
 from classes.player import Player
@@ -31,7 +30,6 @@ if submit or auto_load:
         st.error("must be a valid pdga number")
 
     if CONTINUE:
-        st.session_state["pdga_no"] = pdga_no
         st.query_params["pdga_no"] = pdga_no
         try:
             player = Player(pdga_no)
@@ -65,10 +63,6 @@ if submit or auto_load:
     if CONTINUE:
         if player.ratings_detail_df is not None:
             df = player.ratings_detail_df
-            df["date"] = pd.to_datetime(df["date"], format="mixed")
-            df = df.sort_values(by=["date", "round"], ascending=False).reset_index(
-                drop=True
-            )
 
             official_rating = player.cur_rating
             df, calc_rating, drop_thres = calculate_rating(df)
@@ -116,9 +110,6 @@ if submit or auto_load:
 *((average rating - 2.5 SD) + 5) or (average rating - 100)*
 - **NEW TOURNAMENTS:** {new_tourns}
             """)
-
-            # if st.button("Enter a New Tournament"):
-            #     switch_page("Enter New Tournament")
 
             # graphs
             col1, col2 = st.columns(2)

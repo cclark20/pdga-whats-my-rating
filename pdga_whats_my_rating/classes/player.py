@@ -71,9 +71,6 @@ class Player:
         df["Date"] = df["Date"].apply(lambda x: x.split(" to ")[-1])
 
         df["Date"] = pd.to_datetime(df["Date"], format="mixed")
-        df = df.sort_values(by=["Date", "Round"], ascending=False).reset_index(
-            drop=True
-        )
 
         self.ratings_detail_df = df.rename(
             columns={
@@ -166,24 +163,3 @@ class Player:
         if len(new_rows) > 0:
             new_df = pd.concat(new_rows)
             self.ratings_detail_df = pd.concat([self.ratings_detail_df, new_df])
-
-    # TODO: finish the logic to get world ranking
-    # def get_world_ranking(self):
-    #     URL = "https://www.pdga.com/players/stats?Year=2024&player_Class=All&order=player_Rating&sort=desc&page="
-    #     page_no = 0
-
-    #     # get total num of records
-    #     first_page_url = URL + str(page_no)
-    #     first_page_response = requests.get(first_page_url)
-    #     first_page_soup = BeautifulSoup(first_page_response.text)
-
-    #     total_records = int(
-    #         first_page_soup.find("div", {"class": "view-footer"}).text.split(" ")[-1]
-    #     )
-    #     records_per_page = 20
-
-    #     # calculate number of pages
-    #     total_pages = -total_records // records_per_page
-
-
-# 27734 - 966
