@@ -97,11 +97,16 @@ def show_player(pdga_no):
     if player.ratings_detail_df is None:
         st.markdown(f"### [{player.name}](https://pdga.com/player/{pdga_no})")
         st.write(
-            "no data available. could be an expired member"
-            " or they haven't played tournaments"
-            " in a while."
+            "no data available. this player may not have played any rated tournaments."
         )
         return
+
+    if player.membership_status and "Current" not in player.membership_status:
+        st.warning(
+            f"⚠️ Membership status: **{player.membership_status}**. "
+            "This player has no official rating, but we can still calculate "
+            "an unofficial rating from their round history."
+        )
 
     df = player.ratings_detail_df
 
@@ -124,52 +129,58 @@ def show_player(pdga_no):
         " \n💡*bookmark this page to save this search!*"
     )
     col1, col2 = st.columns(2)
+    delta = (calc_rating - official_rating) if official_rating is not None else None
     col1.metric(
         "Calculated Unofficial Rating (as of RIGHT NOW)",
         calc_rating,
-        (calc_rating - official_rating),
+        delta,
     )
     eval_mask = df["evaluated"] == "Yes"
     n_evaluated = len(df[eval_mask])
     n_used = len(df[df["used"] == "Yes"])
 
-    if player.new_tournaments is None and calc_rating != official_rating:
-        diff = abs(calc_rating - official_rating)
-        link = _mailto(
-            f"What's My Rating - Rating Discrepancy (PDGA #{pdga_no})",
-            f"PDGA Number: {pdga_no}\n"
-            f"Calculated Rating: {calc_rating}\n"
-            f"Official Rating: {official_rating}\n"
-            f"Difference: {diff}\n"
-            f"Rounds Evaluated: {n_evaluated}\n"
-            f"Rounds Used: {n_used}\n",
+    if official_rating is not None:
+        if player.new_tournaments is None and calc_rating != official_rating:
+            diff = abs(calc_rating - official_rating)
+            link = _mailto(
+                f"What's My Rating - Rating Discrepancy (PDGA #{pdga_no})",
+                f"PDGA Number: {pdga_no}\n"
+                f"Calculated Rating: {calc_rating}\n"
+                f"Official Rating: {official_rating}\n"
+                f"Difference: {diff}\n"
+                f"Rounds Evaluated: {n_evaluated}\n"
+                f"Rounds Used: {n_used}\n",
+            )
+            if diff <= 2:
+                msg = (
+                    f"*You have no new rounds, so our calculation"
+                    f" should match your official rating exactly,"
+                    f" but we're off by {diff}. Small differences"
+                    f" are usually due to rounding or minor aspects"
+                    f" of the PDGA algorithm we can't fully replicate"
+                    f" (e.g. hole count weighting).*"
+                )
+            else:
+                msg = (
+                    f"*You have no new rounds, so our calculation"
+                    f" should match your official rating exactly,"
+                    f" but we're off by {diff}. Small differences"
+                    f" can happen due to rounding, but this gap is"
+                    f" larger than expected."
+                )
+                if link:
+                    msg += (
+                        f" Please [let me know]({link}) so I can improve the algorithm!"
+                    )
+                msg += "*"
+            col1.markdown(msg)
+        col2.metric(
+            f"Official Rating {player.rating_date}",
+            official_rating,
+            player.rating_change,
         )
-        if diff <= 2:
-            msg = (
-                f"*You have no new rounds, so our calculation"
-                f" should match your official rating exactly,"
-                f" but we're off by {diff}. Small differences"
-                f" are usually due to rounding or minor aspects"
-                f" of the PDGA algorithm we can't fully replicate"
-                f" (e.g. hole count weighting).*"
-            )
-        else:
-            msg = (
-                f"*You have no new rounds, so our calculation"
-                f" should match your official rating exactly,"
-                f" but we're off by {diff}. Small differences"
-                f" can happen due to rounding, but this gap is"
-                f" larger than expected."
-            )
-            if link:
-                msg += f" Please [let me know]({link}) so I can improve the algorithm!"
-            msg += "*"
-        col1.markdown(msg)
-    col2.metric(
-        f"Official Rating {player.rating_date}",
-        official_rating,
-        player.rating_change,
-    )
+    else:
+        col2.metric("Official Rating", "N/A")
 
     avg_rating = df.loc[eval_mask, "rating"].mean()
     std_dev = df.loc[eval_mask, "rating"].std(ddof=0)

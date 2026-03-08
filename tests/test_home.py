@@ -21,6 +21,7 @@ def _make_mock_player(
     rating_date="(as of 11-Nov-2025)",
     fixture_file="player_27523_2025-11-11.csv",
     new_tournaments=None,
+    membership_status="Current (through 31-Dec-2026)",
 ):
     """Build a mock Player with real fixture data."""
     player = MagicMock()
@@ -30,6 +31,7 @@ def _make_mock_player(
     player.rating_change = rating_change
     player.rating_date = rating_date
     player.new_tournaments = new_tournaments
+    player.membership_status = membership_status
 
     if fixture_file:
         df = pd.read_csv(f"{FIXTURES_DIR}/{fixture_file}", parse_dates=["date"])
@@ -301,6 +303,53 @@ class TestOutlierRounds:
         assert not at.exception
         markdown_texts = [m.value for m in at.markdown]
         assert any("No rounds dropped as outliers" in m for m in markdown_texts)
+
+
+class TestExpiredMember:
+    def _run_expired(self):
+        """Run with an expired member who has round data but no official rating."""
+        mock_player = _make_mock_player(
+            pdga_no="123400",
+            name="Expired Player",
+            cur_rating=None,
+            rating_change=None,
+            rating_date=None,
+            membership_status="Expired (as of 31-Dec-2025)",
+        )
+        with (
+            patch(
+                "classes.player.Player.__init__",
+                lambda self, *a, **kw: None,
+            ),
+            patch(
+                "classes.player.Player.__new__",
+                lambda cls, *a, **kw: mock_player,
+            ),
+        ):
+            return _run_with_input("123400")
+
+    def test_renders_without_error(self):
+        at = self._run_expired()
+        assert not at.exception
+
+    def test_shows_membership_warning(self):
+        at = self._run_expired()
+        assert not at.exception
+        assert len(at.warning) >= 1
+        assert any("Expired" in w.value for w in at.warning)
+
+    def test_shows_calculated_rating(self):
+        at = self._run_expired()
+        assert not at.exception
+        assert len(at.metric) >= 1
+        calc_metric = at.metric[0]
+        assert calc_metric.label == "Calculated Unofficial Rating (as of RIGHT NOW)"
+
+    def test_shows_no_official_rating(self):
+        at = self._run_expired()
+        assert not at.exception
+        official_metric = at.metric[1]
+        assert official_metric.value == "N/A"
 
 
 class TestQueryParams:
