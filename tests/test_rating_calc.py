@@ -31,7 +31,7 @@ class TestCalculateRating:
         """Rating should be close to the average of input ratings."""
         ratings = [900, 910, 920, 905, 915, 895, 910, 920]
         df = make_df(ratings)
-        _, calc_rating, _ = calculate_rating(df, 910)
+        _, calc_rating, _ = calculate_rating(df)
         # Should be in the ballpark of the input ratings
         assert 890 <= calc_rating <= 930
 
@@ -40,7 +40,7 @@ class TestCalculateRating:
         # 8 rounds: last 25% (2 most recent) are double-weighted
         ratings = [1000, 1000, 900, 900, 900, 900, 900, 900]
         df = make_df(ratings)
-        _, calc_rating, _ = calculate_rating(df, 950)
+        _, calc_rating, _ = calculate_rating(df)
         # weighted avg = (1000*2 + 1000*2 + 900*6) / 10 = 940
         assert calc_rating == math.ceil(9400 / 10)
 
@@ -49,7 +49,7 @@ class TestCalculateRating:
         ratings = [900, 910, 920, 905, 800]
         tiers = ["A", "A", "A", "A", "XM"]
         df = make_df(ratings, tiers=tiers)
-        result_df, calc_rating, _ = calculate_rating(df, 900)
+        result_df, calc_rating, _ = calculate_rating(df)
         assert "XM" not in result_df["tier"].values
         # Without the 800 XM round, rating should be higher
         assert calc_rating > 800
@@ -66,7 +66,7 @@ class TestCalculateRating:
         ]
         ratings = [900, 910, 920, 905, 500]
         df = make_df(ratings, dates=dates)
-        result_df, calc_rating, _ = calculate_rating(df, 900)
+        result_df, calc_rating, _ = calculate_rating(df)
         old_row = result_df[result_df["rating"] == 500].iloc[0]
         assert old_row["evaluated"] == "No"
         assert old_row["weight"] == 0
@@ -77,7 +77,7 @@ class TestCalculateRating:
         """Rounds below 2.5 SD + 5 buffer should be dropped."""
         ratings = [950, 950, 950, 950, 950, 950, 950, 950, 600]
         df = make_df(ratings)
-        result_df, _, threshold = calculate_rating(df, 950)
+        result_df, _, threshold = calculate_rating(df)
         outlier_row = result_df[result_df["rating"] == 600].iloc[0]
         assert outlier_row["used"] == "No"
         assert outlier_row["weight"] == 0
@@ -89,7 +89,7 @@ class TestCalculateRating:
         df = make_df(ratings)
         std = np.std(ratings, ddof=0)
         assert (2.5 * std) >= 100
-        result_df, _, threshold = calculate_rating(df, 900)
+        result_df, _, threshold = calculate_rating(df)
         # 800s are dropped on first pass, then threshold shifts
         # on second pass based on remaining [1000, 900] rounds
         assert all(result_df[result_df["rating"] == 800]["weight"] == 0)
@@ -98,7 +98,7 @@ class TestCalculateRating:
         """'used' column should be 'Yes' only for weight > 0."""
         ratings = [900, 910, 920, 905, 915, 895, 910, 920]
         df = make_df(ratings)
-        result_df, _, _ = calculate_rating(df, 910)
+        result_df, _, _ = calculate_rating(df)
         for _, row in result_df.iterrows():
             if row["weight"] > 0:
                 assert row["used"] == "Yes"
@@ -109,7 +109,7 @@ class TestCalculateRating:
         """Result should have mavg_5 and mavg_15 columns."""
         ratings = [900, 910, 920, 930, 940]
         df = make_df(ratings)
-        result_df, _, _ = calculate_rating(df, 920)
+        result_df, _, _ = calculate_rating(df)
         assert "mavg_5" in result_df.columns
         assert "mavg_15" in result_df.columns
         assert not result_df["mavg_5"].isna().any()
@@ -119,7 +119,7 @@ class TestCalculateRating:
         """Last 25% of evaluated rounds should have weight=2."""
         ratings = [900 + i * 5 for i in range(12)]
         df = make_df(ratings)
-        result_df, _, _ = calculate_rating(df, 930)
+        result_df, _, _ = calculate_rating(df)
         evaluated = result_df[result_df["evaluated"] == "Yes"]
         expected_double = round(len(evaluated) * 0.25)
         actual_double = len(result_df[result_df["weight"] == 2])
@@ -129,7 +129,7 @@ class TestCalculateRating:
         """calculate_rating returns (df, rating, threshold)."""
         ratings = [900, 910, 920, 905]
         df = make_df(ratings)
-        result = calculate_rating(df, 900)
+        result = calculate_rating(df)
         assert len(result) == 3
         assert isinstance(result[0], pd.DataFrame)
         assert isinstance(result[1], int)

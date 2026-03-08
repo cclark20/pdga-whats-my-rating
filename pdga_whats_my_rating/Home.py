@@ -71,7 +71,7 @@ if submit or auto_load:
             )
 
             official_rating = player.cur_rating
-            df, calc_rating, drop_thres = calculate_rating(df, official_rating)
+            df, calc_rating, drop_thres = calculate_rating(df)
 
             st.markdown(
                 f"### [{player.name}](https://pdga.com/player/{pdga_no})"

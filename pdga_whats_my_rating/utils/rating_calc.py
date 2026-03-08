@@ -6,7 +6,7 @@ import streamlit as st
 
 
 @st.cache_data
-def calculate_rating(df, current_rating):
+def calculate_rating(df):
     """
     12 months prior to latest round
     last 25% are worth double
@@ -72,6 +72,9 @@ def calculate_rating(df, current_rating):
     )
 
     # rating
+    if df["weight"].sum() == 0:
+        return df, 0, threshold
+
     rating = np.average(df.rating, weights=df.weight)
 
     return df, int(math.ceil(rating)), threshold
