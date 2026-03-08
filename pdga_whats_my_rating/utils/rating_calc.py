@@ -28,22 +28,30 @@ def calculate_rating(df, current_rating):
     df.loc[valid_dates, "weight"] = 1
     df.loc[valid_dates, "evaluated"] = "Yes"
 
-    # double the last 25%
+    # double the last 25% (computed before outlier removal)
     num_double = round(len(df[valid_dates]) * 0.25)
     df.loc[: (num_double - 1), "weight"] = 2
 
-    # remove outliers
-    std = df.loc[valid_dates, "rating"].std(ddof=0)
-    avg = df.loc[valid_dates, "rating"].mean()
-    if (2.5 * std) < 100:
-        threshold = (
-            math.ceil(avg - math.floor(2.5 * std)) + 5
-        )  # +5 is a buffer that I think pdga does
-    else:
-        threshold = math.ceil(avg - 100)
-
-    low_ratings = df["rating"] <= threshold
-    df.loc[low_ratings, "weight"] = 0
+    # iteratively remove outliers — dropping a round shifts the
+    # avg/std, which may expose additional outliers.
+    # 10 is just a safety cap; typically converges in 2-3 passes.
+    threshold = 0
+    for _ in range(10):
+        used_mask = df["weight"] > 0
+        if used_mask.sum() == 0:
+            break
+        std = df.loc[used_mask, "rating"].std(ddof=0)
+        if std == 0:
+            break
+        avg = df.loc[used_mask, "rating"].mean()
+        if (2.5 * std) < 100:
+            new_threshold = math.ceil(avg - math.floor(2.5 * std)) + 5
+        else:
+            new_threshold = math.ceil(avg - 100)
+        if new_threshold == threshold:
+            break
+        threshold = new_threshold
+        df.loc[df["rating"] <= threshold, "weight"] = 0
 
     # set used col
     df.loc[df["weight"] > 0, "used"] = "Yes"

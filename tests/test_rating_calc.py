@@ -88,10 +88,11 @@ class TestCalculateRating:
         ratings = [1000, 900, 800, 1000, 900, 800, 1000, 900, 800]
         df = make_df(ratings)
         std = np.std(ratings, ddof=0)
-        avg = np.mean(ratings)
         assert (2.5 * std) >= 100
-        _, _, threshold = calculate_rating(df, 900)
-        assert threshold == math.ceil(avg - 100)
+        result_df, _, threshold = calculate_rating(df, 900)
+        # 800s are dropped on first pass, then threshold shifts
+        # on second pass based on remaining [1000, 900] rounds
+        assert all(result_df[result_df["rating"] == 800]["weight"] == 0)
 
     def test_used_column_reflects_weights(self):
         """'used' column should be 'Yes' only for weight > 0."""
