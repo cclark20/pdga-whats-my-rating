@@ -30,8 +30,8 @@ FIXTURES_DIR = "tests/fixtures"
         ("player_45971_2026-02-10.csv", 1051, 2),
         # Brian Schweberger - official 1002 as of 2026-02-10
         ("player_12989_2026-02-10.csv", 1002, 2),
-        # Ben Adinolfi - official 940 as of 2025-11-11 (calc=937, off by 3)
-        ("player_146195_2025-11-11.csv", 940, 4),
+        # Ben Adinolfi - official 940 as of 2025-11-11
+        ("player_146195_2025-11-11.csv", 940, 2),
     ],
 )
 def test_matches_official_rating(fixture_file, official_rating, tolerance):
