@@ -1,10 +1,11 @@
 """
-Regression tests that compare calculate_rating output against known official PDGA ratings.
+Regression tests comparing calculate_rating against official PDGA ratings.
 
 To add a new test case:
-1. Save the player's ratings detail CSV to tests/fixtures/player_{pdga_no}_{rating_date}.csv
-   Columns needed: tournament, date, tier, division, round, rating
-2. Add a tuple to the parametrize list: (fixture_filename, official_rating, tolerance)
+1. Save the player's ratings detail CSV to
+   tests/fixtures/player_{pdga_no}_{rating_date}.csv
+   Columns: tournament, date, tier, division, round, rating
+2. Add a tuple to the parametrize list below.
 """
 
 import pandas as pd
