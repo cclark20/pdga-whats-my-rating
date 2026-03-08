@@ -35,4 +35,29 @@ A Streamlit web app that calculates unofficial PDGA (Professional Disc Golf Asso
 - Query param `pdga_no` enables bookmarkable player lookups
 - Tests use pytest with `pythonpath = ["pdga_whats_my_rating"]` in pyproject.toml
 - `tests/conftest.py` patches `st.cache_data` to a no-op for test compatibility
-- The rating algorithm's +5 buffer on the outlier threshold is an approximation of PDGA's actual calculation
+- PDGA rate-limits requests — add delays (3-5s) between requests when scraping multiple players
+
+## PDGA Official Rating Algorithm
+
+Per PDGA documentation:
+- **12-month window** from most recent rated round
+- **Double-weight most recent 25%** once player has ≥9 rated rounds
+- **<8 rounds in 12 months**: look back up to 24 months to find ≥8 rounds (not yet implemented)
+- **Outlier removal** (≥7 rounds): drop rounds >2.5 SD or >100 points below average
+- **Incomplete rounds** are excluded
+
+### Our implementation vs PDGA
+
+- The `+5` buffer on the outlier threshold is an empirical approximation — helps match PDGA results but the exact rule is unknown
+- Outlier removal is iterative: dropping one outlier shifts avg/std, which can expose additional outliers
+- The double-weight count (`round(n * 0.25)`) is computed from evaluated rounds before outlier removal, then applied to remaining rounds after removal
+- The 24-month lookback for <8 rounds is not yet implemented
+- One known unexplained gap: Josh (167214) is off by 6 — PDGA drops a round (899) that doesn't trigger any threshold we can compute. Likely an unpublished PDGA rule.
+
+## Testing
+
+- **Unit tests** (`tests/test_rating_calc.py`): test algorithm mechanics (weighting, outlier drops, 12-month window, XM exclusion) with synthetic data
+- **Accuracy regression tests** (`tests/test_rating_accuracy.py`): compare `calculate_rating` output against known official PDGA ratings using real player data fixtures
+- Fixtures are CSV snapshots stored in `tests/fixtures/player_{pdga_no}_{rating_date}.csv`
+- To add a new test case: save the player's ratings detail CSV, add a parametrize tuple with `(filename, official_rating, tolerance)`
+- Current accuracy: 5/7 players exact match, 1 off by 1, 1 off by 6 (Josh — unexplained PDGA outlier logic)
