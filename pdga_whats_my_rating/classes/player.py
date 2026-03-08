@@ -19,6 +19,7 @@ class Player:
         self.cur_rating = None
         self.rating_change = None
         self.rating_date = None
+        self.membership_status = None
         self.ratings_detail_df = None
         self.new_tournaments = None
 
@@ -26,7 +27,7 @@ class Player:
 
         self._fetch_basic_info()
         self._fetch_ratings_detail()
-        if self.ratings_detail_df is not None:
+        if self.ratings_detail_df is not None and self.rating_date is not None:
             self._fetch_recent_events()
             if self.new_tournaments is not None:
                 self._add_new_tournaments()
@@ -53,6 +54,16 @@ class Player:
 
         rating_date = soup.find("small", {"class": "rating-date"})
         self.rating_date = rating_date.text if rating_date else None
+
+        membership_label = soup.find("strong", string=re.compile(r"Membership Status"))
+        if membership_label:
+            parts = []
+            for sibling in membership_label.next_siblings:
+                if hasattr(sibling, "get_text"):
+                    parts.append(sibling.get_text())
+                else:
+                    parts.append(str(sibling))
+            self.membership_status = " ".join("".join(parts).split())
 
     def _fetch_ratings_detail(self):
         URL = f"https://www.pdga.com/player/{self.pdga_no}/details"
