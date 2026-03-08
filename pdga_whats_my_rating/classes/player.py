@@ -184,3 +184,6 @@ class Player:
         if len(new_rows) > 0:
             new_df = pd.concat(new_rows)
             self.ratings_detail_df = pd.concat([self.ratings_detail_df, new_df])
+            self.ratings_detail_df["round"] = self.ratings_detail_df["round"].astype(
+                str
+            )
