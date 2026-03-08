@@ -146,6 +146,71 @@ class TestSuccessfulLookup:
         assert any("no data available" in m for m in markdown_texts)
 
 
+class TestDroppedRounds:
+    def _make_df_with_evaluated(self):
+        """Build a df where some rounds have PDGA evaluated='Yes' but
+        fall outside the 12-month window from the most recent round."""
+        rows = []
+        # Recent rounds (within 12 months) — will be evaluated
+        for i in range(10):
+            rows.append(
+                {
+                    "tournament": f"Recent Tournament {i}",
+                    "date": pd.Timestamp("2025-06-01") - pd.DateOffset(months=i),
+                    "tier": "A",
+                    "division": "MPO",
+                    "round": 1,
+                    "rating": 1000,
+                    "evaluated": "Yes",
+                }
+            )
+        # Old rounds (>12 months ago) — PDGA had them evaluated but they should drop
+        for i in range(3):
+            rows.append(
+                {
+                    "tournament": f"Old Tournament {i}",
+                    "date": pd.Timestamp("2024-04-01") - pd.DateOffset(months=i),
+                    "tier": "A",
+                    "division": "MPO",
+                    "round": 1,
+                    "rating": 1000,
+                    "evaluated": "Yes",
+                }
+            )
+        return pd.DataFrame(rows)
+
+    def _run_with_evaluated(self, df):
+        mock_player = _make_mock_player()
+        mock_player.ratings_detail_df = df
+        with (
+            patch(
+                "classes.player.Player.__init__",
+                lambda self, *a, **kw: None,
+            ),
+            patch(
+                "classes.player.Player.__new__",
+                lambda cls, *a, **kw: mock_player,
+            ),
+        ):
+            return _run_with_input("27523")
+
+    def test_dropped_rounds_displayed(self):
+        df = self._make_df_with_evaluated()
+        at = self._run_with_evaluated(df)
+        assert not at.exception
+        markdown_texts = [m.value for m in at.markdown]
+        assert any("Dropped from 12-Month Window" in m for m in markdown_texts)
+
+    def test_no_dropped_rounds_message_when_none_dropped(self):
+        df = self._make_df_with_evaluated()
+        # Keep only recent rounds — none should be dropped
+        df = df[df["date"] >= pd.Timestamp("2024-06-01")].copy()
+        at = self._run_with_evaluated(df)
+        assert not at.exception
+        markdown_texts = [m.value for m in at.markdown]
+        assert any("No rounds dropped" in m for m in markdown_texts)
+
+
 class TestQueryParams:
     def test_auto_loads_from_query_param(self):
         mock_player = _make_mock_player()

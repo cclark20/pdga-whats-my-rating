@@ -1,3 +1,4 @@
+import pandas as pd
 import requests
 import streamlit as st
 from classes.player import Player
@@ -69,6 +70,17 @@ def show_player(pdga_no):
 
     df = player.ratings_detail_df
 
+    # save original PDGA evaluated status before calculate_rating overwrites it
+    has_original_evaluated = "evaluated" in df.columns
+    if has_original_evaluated:
+        original_evaluated = df[["tournament", "date", "round", "evaluated"]].copy()
+        original_evaluated["date"] = pd.to_datetime(
+            original_evaluated["date"], format="mixed"
+        )
+        original_evaluated = original_evaluated.rename(
+            columns={"evaluated": "pdga_evaluated"}
+        )
+
     official_rating = player.cur_rating
     df, calc_rating, drop_thres = calculate_rating(df)
 
@@ -115,6 +127,32 @@ def show_player(pdga_no):
 *((average rating - 2.5 SD) + 5) or (average rating - 100)*
 - **NEW TOURNAMENTS:** {new_tourns}
     """)
+
+    # show rounds that were in PDGA's evaluation window but dropped from ours
+    if has_original_evaluated:
+        merged = df.merge(
+            original_evaluated,
+            on=["tournament", "date", "round"],
+            how="left",
+        )
+        dropped = merged[
+            (merged["pdga_evaluated"] == "Yes") & (merged["evaluated"] == "No")
+        ]
+        if not dropped.empty:
+            st.markdown("#### Rounds Dropped from 12-Month Window")
+            st.caption(
+                "These rounds were in your last official rating"
+                " but have since fallen outside the 12-month window."
+            )
+            st.dataframe(
+                dropped[["tournament", "date", "round", "rating", "tier"]],
+                hide_index=True,
+            )
+        else:
+            st.markdown(
+                "**No rounds dropped from the 12-month window**"
+                " since your last official rating."
+            )
 
     # graphs
     col1, col2 = st.columns(2)
