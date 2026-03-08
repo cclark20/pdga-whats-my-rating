@@ -1,4 +1,3 @@
-import os
 from urllib.parse import quote
 
 import pandas as pd
@@ -8,7 +7,10 @@ from classes.player import Player
 from utils import figs
 from utils.rating_calc import calculate_rating
 
-_EMAIL = os.environ.get("CONTACT_EMAIL", "")
+try:
+    _EMAIL = st.secrets["CONTACT_EMAIL"]
+except (KeyError, FileNotFoundError):
+    _EMAIL = ""
 
 
 def _mailto(subject, body=""):
