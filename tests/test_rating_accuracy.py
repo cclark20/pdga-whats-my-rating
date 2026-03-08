@@ -36,7 +36,7 @@ FIXTURES_DIR = "tests/fixtures"
 )
 def test_matches_official_rating(fixture_file, official_rating, tolerance):
     df = pd.read_csv(f"{FIXTURES_DIR}/{fixture_file}", parse_dates=["date"])
-    _, calc_rating, _, _ = calculate_rating(df)
+    _, calc_rating, _ = calculate_rating(df)
     diff = abs(calc_rating - official_rating)
     assert diff <= tolerance, (
         f"Calculated {calc_rating}, official {official_rating}, "

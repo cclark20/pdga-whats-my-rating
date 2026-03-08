@@ -18,7 +18,7 @@ A Streamlit web app that calculates unofficial PDGA (Professional Disc Golf Asso
 
 - **`pdga_whats_my_rating/Home.py`** — Streamlit entrypoint. Handles form input, displays metrics, charts, and data tables.
 - **`classes/player.py`** — `Player` class that scrapes pdga.com for a player's info, ratings detail, and recent events. Fetches from three sources: player home page, `/details` page, and individual tournament pages for new (not-yet-rated) tournaments.
-- **`utils/rating_calc.py`** — `calculate_rating()` implements the PDGA rating algorithm: 12/24-month window, last 25% double-weighted (≥9 rounds), outlier drop at 2.5 SD or 100 points below average (≥7 rounds), excludes XM tier. Returns `(df, rating, threshold, window_months)`.
+- **`utils/rating_calc.py`** — `calculate_rating()` implements the PDGA rating algorithm: 12-month window, last 25% double-weighted, outlier drop at 2.5 SD (or 100 points) below average, excludes XM tier.
 - **`utils/figs.py`** — Plotly chart builders: rating history bar chart with 5/15 moving averages, and division box plot.
 
 ## Workflow
@@ -40,12 +40,11 @@ A Streamlit web app that calculates unofficial PDGA (Professional Disc Golf Asso
 
 ## PDGA Official Rating Algorithm
 
-Per [PDGA ratings guide](https://pdga.com/ratings/guide):
+Per PDGA documentation:
 - **12-month window** from most recent rated round
-- **24-month lookback**: if <8 rounds in 12 months, extend window to 24 months
-- **Double-weight most recent 25%** only when ≥9 evaluated rounds
-- **Outlier removal** only when ≥7 evaluated rounds: drop rounds >2.5 SD or >100 points below average
-- **Hole count weighting**: 18-hole = 1x, 27-hole = 1.5x (not yet implemented — requires scraping individual tournament pages)
+- **Double-weight most recent 25%** once player has ≥9 rated rounds
+- **<8 rounds in 12 months**: look back up to 24 months to find ≥8 rounds (not yet implemented)
+- **Outlier removal** (≥7 rounds): drop rounds >2.5 SD or >100 points below average
 - **Incomplete rounds** are excluded
 
 ### Our implementation vs PDGA
@@ -53,7 +52,7 @@ Per [PDGA ratings guide](https://pdga.com/ratings/guide):
 - The `+5` buffer on the outlier threshold is an empirical approximation — helps match PDGA results but the exact rule is unknown
 - Outlier removal is iterative: dropping one outlier shifts avg/std, which can expose additional outliers
 - The double-weight count (`round(n * 0.25)`) is computed from evaluated rounds before outlier removal, then applied to remaining rounds after removal
-- Hole count weighting is not yet implemented — the PDGA ratings detail page doesn't include hole counts (see separate issue)
+- The 24-month lookback for <8 rounds is not yet implemented
 - One known unexplained gap: Josh (167214) is off by 6 — PDGA drops a round (899) that doesn't trigger any threshold we can compute. Likely an unpublished PDGA rule.
 
 ## Testing

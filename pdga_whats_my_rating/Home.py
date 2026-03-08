@@ -117,7 +117,7 @@ def show_player(pdga_no):
         )
 
     official_rating = player.cur_rating
-    df, calc_rating, drop_thres, window_months = calculate_rating(df)
+    df, calc_rating, drop_thres = calculate_rating(df)
 
     st.markdown(
         f"### [{player.name}](https://pdga.com/player/{pdga_no})"
@@ -144,26 +144,14 @@ def show_player(pdga_no):
             f"Rounds Evaluated: {n_evaluated}\n"
             f"Rounds Used: {n_used}\n",
         )
-        if diff <= 2:
-            msg = (
-                f"*You have no new rounds, so our calculation"
-                f" should match your official rating exactly,"
-                f" but we're off by {diff}. Small differences"
-                f" are usually due to rounding or minor aspects"
-                f" of the PDGA algorithm we can't fully replicate"
-                f" (e.g. hole count weighting).*"
-            )
-        else:
-            msg = (
-                f"*You have no new rounds, so our calculation"
-                f" should match your official rating exactly,"
-                f" but we're off by {diff}. Small differences"
-                f" can happen due to rounding, but this gap is"
-                f" larger than expected."
-            )
-            if link:
-                msg += f" Please [let me know]({link}) so I can improve the algorithm!"
-            msg += "*"
+        msg = (
+            f"*You have no new rounds, so our calculation"
+            f" should match your official rating exactly,"
+            f" but we're off by {diff}."
+        )
+        if link:
+            msg += f" Please [let me know]({link}) so I can improve the algorithm!"
+        msg += "*"
         col1.markdown(msg)
     col2.metric(
         f"Official Rating {player.rating_date}",
@@ -226,11 +214,11 @@ def show_player(pdga_no):
                 (merged["pdga_evaluated"] == "Yes") & (merged["evaluated"] == "No")
             ]
             if not dropped.empty:
-                st.markdown(f"#### Rounds Dropped from {window_months}-Month Window")
+                st.markdown("#### Rounds Dropped from 12-Month Window")
                 st.caption(
                     "These rounds were in your last official rating"
-                    f" but have since fallen outside the {window_months}-month"
-                    " evaluation window."
+                    " but have since fallen outside the 12-month"
+                    " window."
                 )
                 st.dataframe(
                     dropped[["tournament", "date", "round", "rating", "tier"]],
@@ -238,7 +226,7 @@ def show_player(pdga_no):
                 )
             else:
                 st.markdown(
-                    f"**No rounds dropped from the {window_months}-month window**"
+                    "**No rounds dropped from the 12-month window**"
                     " since your last official rating."
                 )
 
@@ -247,7 +235,7 @@ def show_player(pdga_no):
         if not outliers.empty:
             st.markdown("#### Rounds Dropped as Outliers")
             st.caption(
-                f"These rounds are within the {window_months}-month window but"
+                "These rounds are within the 12-month window but"
                 " were dropped because their rating is at or below"
                 f" the drop threshold (~{int(drop_thres)})."
             )
