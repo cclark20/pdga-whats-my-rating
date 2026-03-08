@@ -276,6 +276,12 @@ def show_player(pdga_no):
         width="stretch",
     )
 
+    st.markdown(
+        "---\n"
+        "This app will always be free. If you want to support,"
+        " [☕ buy me a coffee!](https://buymeacoffee.com/cclark)"
+    )
+
 
 if submit or auto_load:
     show_player(pdga_no)
