@@ -23,17 +23,18 @@ def calculate_rating(df):
     df["used"] = "No"
 
     df = df[df.tier != "XM"]
+    unrated = df.tournament.str.contains("(Unrated)", case=False, na=False, regex=False)
 
     # set valid dates to 1
-    max_date = df["date"].max()
+    max_date = df.loc[~unrated, "date"].max()
     min_date = max_date - pd.DateOffset(years=1)
-    valid_dates = df["date"] >= min_date
+    valid_dates = (df["date"] >= min_date) & ~unrated
 
     # If <8 rounds in 12 months, extend to 24 months (PDGA rule)
     window_months = 12
     if valid_dates.sum() < 8:
         min_date = max_date - pd.DateOffset(years=2)
-        valid_dates = df["date"] >= min_date
+        valid_dates = (df["date"] >= min_date) & ~unrated
         window_months = 24
 
     df.loc[valid_dates, "weight"] = 1
