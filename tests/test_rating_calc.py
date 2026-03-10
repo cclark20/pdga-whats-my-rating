@@ -58,7 +58,7 @@ class TestCalculateRating:
         assert calc_rating > 800
 
     def test_unrated_tournament_excluded(self):
-        """Tournaments with '(Unrated)' in the name should be excluded."""
+        """Tournaments with '(Unrated)' in the name should not be evaluated."""
         ratings = [900, 910, 920, 905, 800]
         tournaments = [
             "Tournament A",
@@ -69,7 +69,11 @@ class TestCalculateRating:
         ]
         df = make_df(ratings, tournaments=tournaments)
         result_df, calc_rating, _, _ = calculate_rating(df)
-        assert "(Unrated)" not in " ".join(result_df["tournament"].values)
+        unrated_row = result_df[
+            result_df["tournament"] == "SOMD ICE BOWL (Unrated)"
+        ].iloc[0]
+        assert unrated_row["evaluated"] == "No"
+        assert unrated_row["weight"] == 0
         # Without the 800 unrated round, rating should be higher
         assert calc_rating > 800
 
