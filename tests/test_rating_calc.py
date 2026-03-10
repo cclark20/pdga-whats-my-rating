@@ -6,7 +6,7 @@ import pandas as pd
 from utils.rating_calc import calculate_rating
 
 
-def make_df(ratings, dates=None, tiers=None, rounds=None):
+def make_df(ratings, dates=None, tiers=None, rounds=None, tournaments=None):
     """Helper to build a ratings DataFrame for testing."""
     n = len(ratings)
     if dates is None:
@@ -16,12 +16,15 @@ def make_df(ratings, dates=None, tiers=None, rounds=None):
         tiers = ["A"] * n
     if rounds is None:
         rounds = [1] * n
+    if tournaments is None:
+        tournaments = ["Test Tournament"] * n
     return pd.DataFrame(
         {
             "rating": ratings,
             "date": pd.to_datetime(dates),
             "tier": tiers,
             "round": rounds,
+            "tournament": tournaments,
         }
     )
 
@@ -52,6 +55,22 @@ class TestCalculateRating:
         result_df, calc_rating, _, _ = calculate_rating(df)
         assert "XM" not in result_df["tier"].values
         # Without the 800 XM round, rating should be higher
+        assert calc_rating > 800
+
+    def test_unrated_tournament_excluded(self):
+        """Tournaments with '(Unrated)' in the name should be excluded."""
+        ratings = [900, 910, 920, 905, 800]
+        tournaments = [
+            "Tournament A",
+            "Tournament B",
+            "Tournament C",
+            "Tournament D",
+            "SOMD ICE BOWL (Unrated)",
+        ]
+        df = make_df(ratings, tournaments=tournaments)
+        result_df, calc_rating, _, _ = calculate_rating(df)
+        assert "(Unrated)" not in " ".join(result_df["tournament"].values)
+        # Without the 800 unrated round, rating should be higher
         assert calc_rating > 800
 
     def test_12_month_window(self):

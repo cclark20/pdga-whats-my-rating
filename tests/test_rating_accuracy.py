@@ -32,6 +32,8 @@ FIXTURES_DIR = "tests/fixtures"
         ("player_12989_2026-02-10.csv", 1002, 2),
         # Ben Adinolfi - official 940 as of 2025-11-11
         ("player_146195_2025-11-11.csv", 940, 2),
+        # Tyler Adkins - official 768 as of 2026-03-10 (has unrated tournament)
+        ("player_298827_2026-03-10.csv", 768, 2),
     ],
 )
 def test_matches_official_rating(fixture_file, official_rating, tolerance):

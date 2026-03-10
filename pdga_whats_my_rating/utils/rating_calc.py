@@ -23,6 +23,7 @@ def calculate_rating(df):
     df["used"] = "No"
 
     df = df[df.tier != "XM"]
+    df = df[~df.tournament.str.contains("(Unrated)", case=False, na=False, regex=False)]
 
     # set valid dates to 1
     max_date = df["date"].max()
