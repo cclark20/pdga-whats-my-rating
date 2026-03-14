@@ -114,6 +114,19 @@ def show_player(pdga_no):
             "an unofficial rating from their round history."
         )
 
+    # Compute official rating explanation from PDGA data (before new tournaments)
+    official_df = None
+    official_calc_rating = None
+    official_drop_thres = None
+    official_window_months = None
+    if player.official_ratings_detail_df is not None and player.cur_rating is not None:
+        (
+            official_df,
+            official_calc_rating,
+            official_drop_thres,
+            official_window_months,
+        ) = calculate_rating(player.official_ratings_detail_df)
+
     df = player.ratings_detail_df
 
     # save original PDGA evaluated status before calculate_rating overwrites it
@@ -191,7 +204,108 @@ def show_player(pdga_no):
     avg_rating = df.loc[eval_mask, "rating"].mean()
     std_dev = df.loc[eval_mask, "rating"].std(ddof=0)
 
-    with st.expander("Rating Explanation"):
+    if official_df is not None and player.cur_rating is not None:
+        with st.expander("Official Rating Explanation"):
+            o_eval_mask = official_df["evaluated"] == "Yes"
+            o_n_evaluated = len(official_df[o_eval_mask])
+            o_n_used = len(official_df[official_df["used"] == "Yes"])
+            o_avg_rating = official_df.loc[o_eval_mask, "rating"].mean()
+            o_std_dev = official_df.loc[o_eval_mask, "rating"].std(ddof=0)
+
+            st.markdown(f"""
+- **Official Rating:** {player.cur_rating}
+- **Number of rounds evaluated:** {o_n_evaluated}
+- **Number of rounds used:** {o_n_used}
+- **Raw Average Rating:** {o_avg_rating:.2f}
+- **Std Dev:** {o_std_dev:.2f}
+- **Drop Threshold:** ~{int(official_drop_thres)} \
+*((average rating - 2.5 SD) + 5) or (average rating - 100)*
+            """)
+
+            # Double-weighted rounds
+            st.markdown("#### Double-Weighted Rounds")
+            o_double_weighted = official_df[official_df["weight"] == 2]
+            if not o_double_weighted.empty:
+                st.caption(
+                    f"The most recent 25% of evaluated rounds"
+                    f" ({len(o_double_weighted)} rounds) count double"
+                    f" in the rating calculation."
+                )
+                st.dataframe(
+                    o_double_weighted[
+                        ["tournament", "date", "round", "rating", "tier"]
+                    ],
+                    hide_index=True,
+                )
+            else:
+                st.markdown(
+                    "**No rounds are double-weighted** (fewer than 9 evaluated rounds)."
+                )
+
+            # Rounds dropped as outliers
+            st.markdown("#### Rounds Dropped as Outliers")
+            o_outliers = official_df[
+                (official_df["evaluated"] == "Yes") & (official_df["used"] == "No")
+            ]
+            if not o_outliers.empty:
+                st.caption(
+                    f"These rounds are within the {official_window_months}-month"
+                    " window but were dropped because their rating is at or below"
+                    f" the drop threshold (~{int(official_drop_thres)})."
+                )
+                st.dataframe(
+                    o_outliers[["tournament", "date", "round", "rating", "tier"]],
+                    hide_index=True,
+                )
+            else:
+                st.markdown("**No rounds dropped as outliers.**")
+
+            # Rounds aged out of window
+            st.markdown("#### Rounds Aged Out of Window")
+            o_max_date = official_df.loc[
+                ~official_df.tournament.str.contains(
+                    "(Unrated)", case=False, na=False, regex=False
+                ),
+                "date",
+            ].max()
+            aged_out_lookback = (
+                pd.DateOffset(years=2)
+                if official_window_months == 12
+                else pd.DateOffset(years=3)
+            )
+            aged_out_min = o_max_date - aged_out_lookback
+            aged_out = official_df[
+                (official_df["evaluated"] == "No")
+                & (official_df["date"] >= aged_out_min)
+            ]
+            if not aged_out.empty:
+                st.caption(
+                    "These rounds were likely included in a previous official"
+                    f" rating but have since fallen outside the"
+                    f" {official_window_months}-month evaluation window."
+                )
+                st.dataframe(
+                    aged_out[["tournament", "date", "round", "rating", "tier"]],
+                    hide_index=True,
+                )
+            else:
+                st.markdown(
+                    "**No rounds have recently aged out** of the evaluation window."
+                )
+
+            # Accuracy note
+            if official_calc_rating != player.cur_rating:
+                diff = abs(official_calc_rating - player.cur_rating)
+                st.info(
+                    f"Our reconstruction of the official rating gives"
+                    f" **{official_calc_rating}**, which differs from PDGA's"
+                    f" **{player.cur_rating}** by {diff} point(s). This is"
+                    f" likely due to rounding or minor aspects of the PDGA"
+                    f" algorithm we can't fully replicate (e.g. hole count"
+                    f" weighting)."
+                )
+
+    with st.expander("Calculated Rating Explanation"):
         st.markdown(f"""
 - **Number of rounds evaluated:** {n_evaluated}
 - **Number of rounds used:** {n_used}

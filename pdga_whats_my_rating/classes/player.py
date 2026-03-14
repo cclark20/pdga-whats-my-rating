@@ -50,6 +50,7 @@ class Player:
         self.rating_date = None
         self.membership_status = None
         self.ratings_detail_df = None
+        self.official_ratings_detail_df = None
         self.new_tournaments = None
 
         self.home_soup = None
@@ -57,6 +58,7 @@ class Player:
         self._fetch_basic_info()
         self._fetch_ratings_detail()
         if self.ratings_detail_df is not None and self.rating_date is not None:
+            self.official_ratings_detail_df = self.ratings_detail_df.copy()
             self._fetch_recent_events()
             if self.new_tournaments is not None:
                 self._add_new_tournaments()
