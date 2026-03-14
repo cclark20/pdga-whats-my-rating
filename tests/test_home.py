@@ -36,8 +36,10 @@ def _make_mock_player(
     if fixture_file:
         df = pd.read_csv(f"{FIXTURES_DIR}/{fixture_file}", parse_dates=["date"])
         player.ratings_detail_df = df
+        player.official_ratings_detail_df = df.copy()
     else:
         player.ratings_detail_df = None
+        player.official_ratings_detail_df = None
 
     return player
 
