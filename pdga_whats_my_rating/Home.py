@@ -39,9 +39,19 @@ if "pdga_input" not in st.session_state:
 
 # actual page layout and content
 st.title("What's My Rating?")
+
+st.warning(
+    "**Temporarily unavailable.** PDGA recently added bot protection to their site "
+    "that prevents this app from accessing player data. I'm exploring alternatives "
+    "(including the new official PDGA API) and hope to have it back up soon. "
+    "In the meantime, check your rating history directly at "
+    "[pdga.com/player/YOUR_PDGA_NUMBER/details](https://www.pdga.com).",
+    icon="⚠️",
+)
+
 with st.form("form"):
     pdga_no = st.text_input("Enter your PDGA number:", key="pdga_input")
-    submit = st.form_submit_button("Get Data")
+    submit = st.form_submit_button("Get Data", disabled=True)
 
 
 def show_player(pdga_no):
