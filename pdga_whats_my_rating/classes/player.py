@@ -4,8 +4,8 @@ import time
 from collections.abc import Callable
 from io import StringIO
 
+import cloudscraper
 import pandas as pd
-import requests
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
@@ -15,17 +15,19 @@ MAX_RETRIES = 4
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 30  # seconds
 
+_scraper = cloudscraper.create_scraper()
+
 
 def _request_with_retry(
     url: str,
     *,
     timeout: int = REQUEST_TIMEOUT,
     on_retry: Callable[[int, float], None] | None = None,
-) -> requests.Response:
+) -> cloudscraper.CloudScraper:
     """Make a GET request with exponential backoff on 429 responses."""
     last_response = None
     for attempt in range(MAX_RETRIES + 1):
-        response = requests.get(url, timeout=timeout)
+        response = _scraper.get(url, timeout=timeout)
         if response.status_code != 429:
             response.raise_for_status()
             return response
