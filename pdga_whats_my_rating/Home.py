@@ -263,9 +263,7 @@ def show_player(pdga_no):
                     f" in the rating calculation."
                 )
                 st.dataframe(
-                    o_double_weighted[
-                        _round_cols
-                    ],
+                    o_double_weighted[_round_cols],
                     column_config=_link_col,
                     hide_index=True,
                 )
