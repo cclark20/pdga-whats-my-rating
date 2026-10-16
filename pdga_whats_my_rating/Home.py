@@ -15,6 +15,15 @@ try:
 except (KeyError, FileNotFoundError):
     _EMAIL = ""
 
+try:
+    _PDGA_USERNAME = st.secrets["PDGA_USERNAME"]
+    _PDGA_PASSWORD = st.secrets["PDGA_PASSWORD"]
+    _PDGA_MEMBERS_API_URL = st.secrets["PDGA_MEMBERS_API_URL"]
+except (KeyError, FileNotFoundError):
+    _PDGA_USERNAME = None
+    _PDGA_PASSWORD = None
+    _PDGA_MEMBERS_API_URL = None
+
 
 def _mailto(subject, body=""):
     if not _EMAIL:
@@ -28,6 +37,11 @@ if _EMAIL:
     st.sidebar.markdown(
         f"[📬 Send Feedback](mailto:{_EMAIL}?subject={_feedback_subject})"
     )
+st.sidebar.markdown("---")
+st.sidebar.markdown(
+    "🏅 **PDGA Authorized Developer**\n\n"
+    "Player and event data provided by [PDGA](https://pdga.com)."
+)
 
 # seed widget state from query param on first load only
 auto_load = False
@@ -41,17 +55,15 @@ if "pdga_input" not in st.session_state:
 st.title("What's My Rating?")
 
 st.warning(
-    "**Temporarily unavailable.** PDGA recently added bot protection to their site "
-    "that prevents this app from accessing player data. I'm exploring alternatives "
-    "(including the new official PDGA API) and hope to have it back up soon. "
-    "In the meantime, check your rating history directly at "
-    "[pdga.com/player/YOUR_PDGA_NUMBER/details](https://www.pdga.com).",
+    "**New rounds temporarily unavailable.** Rounds played after your last official "
+    "rating update can't be fetched yet — this is a known limitation while we work on "
+    "full API support. For now, the app shows your current official rating breakdown only.",  # noqa: E501
     icon="⚠️",
 )
 
 with st.form("form"):
     pdga_no = st.text_input("Enter your PDGA number:", key="pdga_input")
-    submit = st.form_submit_button("Get Data", disabled=True)
+    submit = st.form_submit_button("Get Data")
 
 
 def show_player(pdga_no):
@@ -62,9 +74,17 @@ def show_player(pdga_no):
         return
 
     st.query_params["pdga_no"] = pdga_no
+
+    if not _PDGA_USERNAME or not _PDGA_PASSWORD or not _PDGA_MEMBERS_API_URL:
+        st.error("PDGA API credentials are not configured. Check app secrets.")
+        return
+
     try:
         player = Player(
             pdga_no,
+            username=_PDGA_USERNAME,
+            password=_PDGA_PASSWORD,
+            members_api_url=_PDGA_MEMBERS_API_URL,
             on_retry=lambda attempt, wait: st.warning(
                 f"PDGA.com rate limit hit. Retrying in {wait:.0f}s..."
                 f" (attempt {attempt + 1})"
@@ -160,7 +180,7 @@ def show_player(pdga_no):
     col1, col2 = st.columns(2)
     delta = (calc_rating - official_rating) if official_rating is not None else None
     col1.metric(
-        "Calculated Unofficial Rating (as of RIGHT NOW)",
+        f"Calculated Rating (based on {player.rating_date or 'official data'})",
         calc_rating,
         delta,
     )
@@ -169,7 +189,7 @@ def show_player(pdga_no):
     n_used = len(df[df["used"] == "Yes"])
 
     if official_rating is not None:
-        if player.new_tournaments is None and calc_rating != official_rating:
+        if calc_rating != official_rating:
             diff = abs(calc_rating - official_rating)
             link = _mailto(
                 f"What's My Rating - Rating Discrepancy (PDGA #{pdga_no})",
@@ -182,19 +202,17 @@ def show_player(pdga_no):
             )
             if diff <= 2:
                 msg = (
-                    f"*You have no new rounds, so our calculation"
-                    f" should match your official rating exactly,"
-                    f" but we're off by {diff}. Small differences"
-                    f" are usually due to rounding or minor aspects"
+                    f"*Our calculation is off by {diff} from your official rating."
+                    f" Small differences are usually due to rounding or minor aspects"
                     f" of the PDGA algorithm we can't fully replicate"
                     f" (e.g. hole count weighting).*"
                 )
             else:
                 msg = (
-                    f"*You have no new rounds, so our calculation"
-                    f" should match your official rating exactly,"
-                    f" but we're off by {diff}. Small differences"
-                    f" can happen due to rounding, but this gap is"
+                    f"*Our calculation is off by {diff} from your official rating."
+                    f" This may be due to rounds played after your last rating update"
+                    f" that aren't yet available via the API, or rounding differences."
+                    f" If you have no recent new rounds, this gap is"
                     f" larger than expected."
                 )
                 if link:
@@ -213,6 +231,9 @@ def show_player(pdga_no):
 
     avg_rating = df.loc[eval_mask, "rating"].mean()
     std_dev = df.loc[eval_mask, "rating"].std(ddof=0)
+
+    _link_col = {"tournament_url": st.column_config.LinkColumn("🔗", display_text="🔗")}
+    _round_cols = ["tournament", "tournament_url", "date", "round", "rating", "tier"]
 
     if official_df is not None and player.cur_rating is not None:
         with st.expander("Official Rating Explanation"):
@@ -242,9 +263,8 @@ def show_player(pdga_no):
                     f" in the rating calculation."
                 )
                 st.dataframe(
-                    o_double_weighted[
-                        ["tournament", "date", "round", "rating", "tier"]
-                    ],
+                    o_double_weighted[_round_cols],
+                    column_config=_link_col,
                     hide_index=True,
                 )
             else:
@@ -264,7 +284,8 @@ def show_player(pdga_no):
                     f" the drop threshold (~{int(official_drop_thres)})."
                 )
                 st.dataframe(
-                    o_outliers[["tournament", "date", "round", "rating", "tier"]],
+                    o_outliers[_round_cols],
+                    column_config=_link_col,
                     hide_index=True,
                 )
             else:
@@ -295,7 +316,8 @@ def show_player(pdga_no):
                     f" {official_window_months}-month evaluation window."
                 )
                 st.dataframe(
-                    aged_out[["tournament", "date", "round", "rating", "tier"]],
+                    aged_out[_round_cols],
+                    column_config=_link_col,
                     hide_index=True,
                 )
             else:
@@ -327,16 +349,12 @@ def show_player(pdga_no):
 
         # new tournaments
         st.markdown("#### New Tournaments")
-        if player.new_tournaments is not None:
-            st.caption(
-                "These tournaments are not yet included in your official rating."
-            )
-            st.dataframe(
-                player.new_tournaments,
-                hide_index=True,
-            )
-        else:
-            st.markdown("**No new tournaments** since your last official rating.")
+        st.info(
+            "Rounds from events after your last official rating update are not "
+            "yet available via the PDGA API. This calculation only reflects "
+            "rounds included in your most recent official rating.",
+            icon="ℹ️",
+        )
 
         # double-weighted rounds
         st.markdown("#### Double-Weighted Rounds")
@@ -348,7 +366,8 @@ def show_player(pdga_no):
                 f" in the rating calculation."
             )
             st.dataframe(
-                double_weighted[["tournament", "date", "round", "rating", "tier"]],
+                double_weighted[_round_cols],
+                column_config=_link_col,
                 hide_index=True,
             )
         else:
@@ -374,7 +393,8 @@ def show_player(pdga_no):
                     " evaluation window."
                 )
                 st.dataframe(
-                    dropped[["tournament", "date", "round", "rating", "tier"]],
+                    dropped[_round_cols],
+                    column_config=_link_col,
                     hide_index=True,
                 )
             else:
@@ -393,7 +413,8 @@ def show_player(pdga_no):
                 f" the drop threshold (~{int(drop_thres)})."
             )
             st.dataframe(
-                outliers[["tournament", "date", "round", "rating", "tier"]],
+                outliers[_round_cols],
+                column_config=_link_col,
                 hide_index=True,
             )
         else:
@@ -413,12 +434,14 @@ def show_player(pdga_no):
     st.subheader("Rating Detail")
     st.dataframe(
         df.drop(columns=["mavg_5", "mavg_15"]),
+        column_config=_link_col,
         hide_index=True,
         width="stretch",
     )
 
     st.markdown(
         "---\n"
+        "Player and event data provided by [PDGA](https://pdga.com). "
         "This app will always be free. If you want to support,"
         " [☕ buy me a coffee!](https://buymeacoffee.com/cclark)"
     )

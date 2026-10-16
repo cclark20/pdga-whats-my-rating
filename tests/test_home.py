@@ -35,6 +35,8 @@ def _make_mock_player(
 
     if fixture_file:
         df = pd.read_csv(f"{FIXTURES_DIR}/{fixture_file}", parse_dates=["date"])
+        if "tournament_url" not in df.columns:
+            df["tournament_url"] = None
         player.ratings_detail_df = df
         player.official_ratings_detail_df = df.copy()
     else:
@@ -141,7 +143,7 @@ class TestSuccessfulLookup:
         assert not at.exception
         markdown_texts = [m.value for m in at.markdown]
         assert any("Number of rounds evaluated" in m for m in markdown_texts)
-        assert any("No new tournaments" in m for m in markdown_texts)
+        assert any("not yet available via the PDGA API" in w.value for w in at.info)
 
     def test_no_ratings_detail(self):
         at = self._run_success(fixture_file=None)
@@ -160,6 +162,7 @@ class TestDroppedRounds:
             rows.append(
                 {
                     "tournament": f"Recent Tournament {i}",
+                    "tournament_url": None,
                     "date": pd.Timestamp("2025-06-01") - pd.DateOffset(months=i),
                     "tier": "A",
                     "division": "MPO",
@@ -173,6 +176,7 @@ class TestDroppedRounds:
             rows.append(
                 {
                     "tournament": f"Old Tournament {i}",
+                    "tournament_url": None,
                     "date": pd.Timestamp("2024-04-01") - pd.DateOffset(months=i),
                     "tier": "A",
                     "division": "MPO",
@@ -258,6 +262,7 @@ class TestOutlierRounds:
             rows.append(
                 {
                     "tournament": f"Tournament {i}",
+                    "tournament_url": None,
                     "date": pd.Timestamp("2025-06-01") - pd.DateOffset(months=i),
                     "tier": "A",
                     "division": "MPO",
@@ -269,6 +274,7 @@ class TestOutlierRounds:
         rows.append(
             {
                 "tournament": "Bad Day",
+                "tournament_url": None,
                 "date": pd.Timestamp("2025-03-15"),
                 "tier": "A",
                 "division": "MPO",
@@ -345,7 +351,7 @@ class TestExpiredMember:
         assert not at.exception
         assert len(at.metric) >= 1
         calc_metric = at.metric[0]
-        assert calc_metric.label == "Calculated Unofficial Rating (as of RIGHT NOW)"
+        assert "Calculated Rating" in calc_metric.label
 
     def test_shows_no_official_rating(self):
         at = self._run_expired()

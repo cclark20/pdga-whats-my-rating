@@ -21,7 +21,7 @@ def _make_response(status_code):
 
 
 @patch("classes.player.time.sleep")
-@patch("classes.player._scraper.get")
+@patch("classes.player.requests.get")
 class TestRequestWithRetry:
     def test_success_first_try(self, mock_get, mock_sleep):
         mock_get.return_value = _make_response(200)
