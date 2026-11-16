@@ -1,12 +1,9 @@
 import logging
-import re
 import time
 from collections.abc import Callable
-from io import StringIO
 
-import cloudscraper
 import pandas as pd
-from bs4 import BeautifulSoup
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +12,20 @@ MAX_RETRIES = 4
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 30  # seconds
 
-_scraper = cloudscraper.create_scraper()
+PDGA_LIVE_PLAYER_URL = (
+    "https://www.pdga.com/apps/tournament/live-api/live_results_fetch_player"
+)
+
+# PDGA asks API consumers to identify themselves
+HEADERS = {
+    "Accept": "application/json",
+    "User-Agent": "pdga-whats-my-rating (github.com/cclark20/pdga-whats-my-rating)",
+}
+
+
+def _format_date(date_str: str) -> str:
+    dt = pd.to_datetime(date_str)
+    return f"{dt.day:02d}-{dt.strftime('%b-%Y')}"
 
 
 def _request_with_retry(
@@ -23,11 +33,10 @@ def _request_with_retry(
     *,
     timeout: int = REQUEST_TIMEOUT,
     on_retry: Callable[[int, float], None] | None = None,
-) -> cloudscraper.CloudScraper:
-    """Make a GET request with exponential backoff on 429 responses."""
+) -> requests.Response:
     last_response = None
     for attempt in range(MAX_RETRIES + 1):
-        response = _scraper.get(url, timeout=timeout)
+        response = requests.get(url, timeout=timeout, headers=HEADERS)
         if response.status_code != 429:
             response.raise_for_status()
             return response
@@ -38,13 +47,21 @@ def _request_with_retry(
                 on_retry(attempt, wait_time)
             time.sleep(wait_time)
     last_response.raise_for_status()
-    return last_response  # unreachable, but satisfies type checker
+    return last_response  # unreachable, satisfies type checker
 
 
 class Player:
-    def __init__(self, pdga_no: int, *, on_retry=None):
+    def __init__(
+        self,
+        pdga_no: int,
+        *,
+        api_urls: dict[str, str],
+        on_retry: Callable[[int, float], None] | None = None,
+    ):
         self.pdga_no = pdga_no
         self._on_retry = on_retry
+        self._api_urls = api_urls
+
         self.name = None
         self.location = None
         self.cur_rating = None
@@ -55,176 +72,161 @@ class Player:
         self.official_ratings_detail_df = None
         self.new_tournaments = None
 
-        self.home_soup = None
-
         self._fetch_basic_info()
         self._fetch_ratings_detail()
-        if self.ratings_detail_df is not None and self.rating_date is not None:
+        if self.ratings_detail_df is not None:
             self.official_ratings_detail_df = self.ratings_detail_df.copy()
-            self._fetch_recent_events()
-            if self.new_tournaments is not None:
-                self._add_new_tournaments()
+            self._fetch_new_rounds()
+
+    def _url(self, name: str) -> str:
+        # URL templates live in app secrets; PDGA asked us not to publish them
+        return self._api_urls[name].format(pdga_no=self.pdga_no)
 
     def _fetch_basic_info(self):
-        URL = f"https://www.pdga.com/player/{self.pdga_no}"
-        response = _request_with_retry(URL, on_retry=self._on_retry)
-        soup = BeautifulSoup(response.text, "html.parser")
-        self.home_soup = soup
+        # unknown PDGA numbers return 404, which raise_for_status surfaces
+        url = self._url("profile")
+        data = _request_with_retry(url, on_retry=self._on_retry).json()
+        member = data.get("member") or {}
 
-        self.name = soup.title.string.split(" | ")[0]
+        self.name = f"{member.get('firstName', '')} {member.get('lastName', '')}"
 
-        location = soup.find("li", {"class": "location"})
-        self.location = location.text.split(": ")[1] if location else None
+        location_parts = [
+            member.get("city"),
+            member.get("stateProv"),
+            member.get("country"),
+        ]
+        self.location = ", ".join(part for part in location_parts if part)
 
-        cur_rating = soup.find("li", {"class": "current-rating"})
-        if cur_rating:
-            match = re.search(r"\d+", cur_rating.get_text())
-            self.cur_rating = int(match.group()) if match else None
+        # the profile keeps returning the last rating after membership lapses,
+        # but PDGA only shows an official rating for current members
+        exp_date = member.get("expDate")
+        is_current = False
+        if exp_date:
+            is_current = pd.to_datetime(exp_date).date() >= pd.Timestamp.now().date()
+            if is_current:
+                self.membership_status = f"Current (through {_format_date(exp_date)})"
+            else:
+                self.membership_status = f"Expired (as of {_format_date(exp_date)})"
 
-        rating_change = soup.find("a", {"class": "rating-difference"})
-        self.rating_change = rating_change.text if rating_change else None
+        current = data.get("currentRating")
+        if not is_current or not current:
+            return
 
-        rating_date = soup.find("small", {"class": "rating-date"})
-        self.rating_date = rating_date.text if rating_date else None
+        self.cur_rating = current.get("rating")
+        if current.get("effectiveDate"):
+            self.rating_date = f"(as of {_format_date(current['effectiveDate'])})"
 
-        membership_label = soup.find("strong", string=re.compile(r"Membership Status"))
-        if membership_label:
-            parts = []
-            for sibling in membership_label.next_siblings:
-                if hasattr(sibling, "get_text"):
-                    parts.append(sibling.get_text())
-                else:
-                    parts.append(str(sibling))
-            self.membership_status = " ".join("".join(parts).split())
+        previous = data.get("previousRating")
+        if previous and previous.get("rating") is not None:
+            delta = current["rating"] - previous["rating"]
+            self.rating_change = f"+{delta}" if delta > 0 else str(delta)
 
     def _fetch_ratings_detail(self):
-        URL = f"https://www.pdga.com/player/{self.pdga_no}/details"
-        response = _request_with_retry(URL, on_retry=self._on_retry)
-        try:
-            df = pd.read_html(StringIO(response.text))[0]
-        except ValueError:
+        url = self._url("rounds")
+        response = _request_with_retry(url, on_retry=self._on_retry)
+        data = response.json()
+
+        if not data:
             self.ratings_detail_df = None
             return
 
-        df = df[
-            [
-                "Tournament",
-                "Date",
-                "Tier",
-                "Division",
-                "Round",
-                "Rating",
-                "Evaluated",
-                "Included",
-            ]
-        ]
-        df["Date"] = df["Date"].apply(lambda x: x.split(" to ")[-1])
-
-        df["Date"] = pd.to_datetime(df["Date"], format="mixed")
-
-        self.ratings_detail_df = df.rename(
-            columns={
-                "Tournament": "tournament",
-                "Date": "date",
-                "Tier": "tier",
-                "Division": "division",
-                "Round": "round",
-                "Rating": "rating",
-                "Evaluated": "evaluated",
-                "Included": "used",
-            }
-        )
-        self.ratings_detail_df["round"] = self.ratings_detail_df["round"].astype(str)
-
-    def _fetch_recent_events(self):
-        soup = self.home_soup
-
-        tables = soup.find_all("table")
-        dfs = []
-        for t in tables:
-            table = pd.read_html(StringIO(str(t)))[0]
-            if "Division" not in table.columns:
-                dfs.append(table)
-        df = pd.concat(dfs)
-        df = df.dropna(subset="Points")
-
-        date_match = re.search(r"\d{2}-[A-Za-z]{3}-\d{4}", self.rating_date)
-        if not date_match:
-            raise ValueError(
-                f"Could not parse rating date from '{self.rating_date}'."
-                " PDGA may have changed their date format."
+        rows = []
+        for item in data:
+            tourn = item.get("tournament", {})
+            end_date = tourn.get("endDate", "")
+            tourn_id = item.get("tournId")
+            rows.append(
+                {
+                    "tournament": tourn.get("officialName"),
+                    "tournament_url": f"https://www.pdga.com/tour/event/{tourn_id}"
+                    if tourn_id
+                    else None,
+                    "date": pd.to_datetime(end_date) if end_date else None,
+                    "tier": tourn.get("tier"),
+                    "division": item.get("division"),
+                    "round": str(item.get("round")),
+                    "rating": item.get("rating"),
+                    "evaluated": "Yes" if item.get("postedToRating") == 1 else "No",
+                    "used": "Yes" if item.get("usedInGross") == 1 else "No",
+                }
             )
-        min_date = pd.to_datetime(date_match.group(), format="%d-%b-%Y")
 
-        df["last_date"] = df["Dates"].str.split(" to ").str[-1]
-        df["last_date"] = pd.to_datetime(df["last_date"], format="%d-%b-%Y")
+        df = pd.DataFrame(rows)
+        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
+        self.ratings_detail_df = df
 
-        new_tournaments = df[df.last_date > min_date].reset_index(drop=True)
+    def _fetch_new_rounds(self):
+        """Add rounds from events not yet in the official rating.
 
-        if len(new_tournaments) > 0:
-            self.new_tournaments = new_tournaments.drop(columns=["last_date"])
+        The events endpoint lists every event but only has the average round
+        rating. Its resultId is the live API's ResultID, which gives per-round
+        ratings.
+        """
+        url = self._url("events")
+        response = _request_with_retry(url, on_retry=self._on_retry)
+        results = response.json() or []
 
-    def _add_new_tournaments(self):
-        soup = self.home_soup
-        tourns = self.new_tournaments
+        official = self.official_ratings_detail_df
+        rated_ids = {
+            int(u.rsplit("/", 1)[-1]) for u in official["tournament_url"].dropna()
+        }
+        last_rated_date = official["date"].max()
 
+        events = []
         new_rows = []
-        for t in range(len(tourns)):
-            tourn_name = tourns.loc[t, "Tournament"]
+        for item in results:
+            result = item.get("liveResult", {})
+            tourn = result.get("tournament", {})
+            tourn_id = result.get("tournId")
+            if not tourn.get("endDate") or not result.get("resultId"):
+                continue
+            end_date = pd.to_datetime(tourn["endDate"], utc=True).tz_localize(None)
+            if tourn_id in rated_ids or end_date < last_rated_date:
+                continue
+
+            tourn_name = tourn.get("officialName")
+            tourn_url = f"https://www.pdga.com/tour/event/{tourn_id}"
+            events.append(
+                {
+                    "tournament": tourn_name,
+                    "tournament_url": tourn_url,
+                    "date": end_date,
+                    "tier": tourn.get("tier"),
+                    "division": result.get("division"),
+                    "place": result.get("place"),
+                    "avg_round_rating": item.get("averageRoundRating"),
+                }
+            )
             try:
-                href = soup.find("a", string=tourn_name)["href"]
-                tour_page = _request_with_retry(
-                    f"https://www.pdga.com{href}", on_retry=self._on_retry
+                live = _request_with_retry(
+                    f"{PDGA_LIVE_PLAYER_URL}?ResultID={result['resultId']}",
+                    on_retry=self._on_retry,
                 )
-                tour_soup = BeautifulSoup(tour_page.text, "html.parser")
-
-                for table in tour_soup.find_all("table")[1:]:
-                    df = pd.read_html(StringIO(str(table)))[0]
-                    if "PDGA#" not in df:
-                        df["PDGA#"] = 0
-                    df["PDGA#"] = df["PDGA#"].fillna(0).astype(int)
-                    if int(self.pdga_no) in df["PDGA#"].values.tolist():
-                        ratings = [col for col in df if col.startswith("Unnamed")]
-
-                        for i, rating in enumerate(ratings):
-                            if (
-                                df[df["PDGA#"] == int(self.pdga_no)][rating].values[0]
-                                > 0
-                            ):
-                                row_df = pd.DataFrame(
-                                    [
-                                        {
-                                            "tournament": tourn_name,
-                                            "date": tourns.loc[t, "Dates"].split(
-                                                " to "
-                                            )[-1],
-                                            "tier": tourns.loc[t, "Tier"],
-                                            "division": href.split("#")[-1],
-                                            "round": i + 1,
-                                            "rating": int(
-                                                df[df["PDGA#"] == int(self.pdga_no)][
-                                                    rating
-                                                ].values[0]
-                                            ),
-                                            "evaluated": None,
-                                            "used": None,
-                                            "weight": None,
-                                        }
-                                    ]
-                                )
-
-                                new_rows.append(row_df)
-
-                        break
-                else:
-                    continue
+                scores = live.json()["data"].get("Scores", [])
             except Exception:
                 logger.exception("Failed to fetch tournament: %s", tourn_name)
                 continue
 
-        if len(new_rows) > 0:
-            new_df = pd.concat(new_rows)
-            self.ratings_detail_df = pd.concat([self.ratings_detail_df, new_df])
-            self.ratings_detail_df["round"] = self.ratings_detail_df["round"].astype(
-                str
+            for score in scores:
+                if not score.get("RoundRating"):
+                    continue
+                new_rows.append(
+                    {
+                        "tournament": tourn_name,
+                        "tournament_url": tourn_url,
+                        "date": end_date,
+                        "tier": tourn.get("tier"),
+                        "division": result.get("division"),
+                        "round": str(score.get("Round")),
+                        "rating": int(score["RoundRating"]),
+                        "evaluated": None,
+                        "used": None,
+                    }
+                )
+
+        if events:
+            self.new_tournaments = pd.DataFrame(events)
+        if new_rows:
+            self.ratings_detail_df = pd.concat(
+                [self.ratings_detail_df, pd.DataFrame(new_rows)], ignore_index=True
             )

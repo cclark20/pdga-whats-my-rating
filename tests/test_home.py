@@ -35,6 +35,8 @@ def _make_mock_player(
 
     if fixture_file:
         df = pd.read_csv(f"{FIXTURES_DIR}/{fixture_file}", parse_dates=["date"])
+        if "tournament_url" not in df.columns:
+            df["tournament_url"] = None
         player.ratings_detail_df = df
         player.official_ratings_detail_df = df.copy()
     else:
@@ -160,6 +162,7 @@ class TestDroppedRounds:
             rows.append(
                 {
                     "tournament": f"Recent Tournament {i}",
+                    "tournament_url": None,
                     "date": pd.Timestamp("2025-06-01") - pd.DateOffset(months=i),
                     "tier": "A",
                     "division": "MPO",
@@ -173,6 +176,7 @@ class TestDroppedRounds:
             rows.append(
                 {
                     "tournament": f"Old Tournament {i}",
+                    "tournament_url": None,
                     "date": pd.Timestamp("2024-04-01") - pd.DateOffset(months=i),
                     "tier": "A",
                     "division": "MPO",
@@ -258,6 +262,7 @@ class TestOutlierRounds:
             rows.append(
                 {
                     "tournament": f"Tournament {i}",
+                    "tournament_url": None,
                     "date": pd.Timestamp("2025-06-01") - pd.DateOffset(months=i),
                     "tier": "A",
                     "division": "MPO",
@@ -269,6 +274,7 @@ class TestOutlierRounds:
         rows.append(
             {
                 "tournament": "Bad Day",
+                "tournament_url": None,
                 "date": pd.Timestamp("2025-03-15"),
                 "tier": "A",
                 "division": "MPO",
