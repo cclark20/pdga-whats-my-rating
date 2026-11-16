@@ -67,6 +67,7 @@ class Player:
         self.cur_rating = None
         self.rating_change = None
         self.rating_date = None
+        self.prev_rating_date = None
         self.membership_status = None
         self.ratings_detail_df = None
         self.official_ratings_detail_df = None
@@ -120,6 +121,10 @@ class Player:
         if previous and previous.get("rating") is not None:
             delta = current["rating"] - previous["rating"]
             self.rating_change = f"+{delta}" if delta > 0 else str(delta)
+        if previous and previous.get("effectiveDate"):
+            self.prev_rating_date = pd.to_datetime(
+                previous["effectiveDate"], utc=True
+            ).tz_localize(None)
 
     def _fetch_ratings_detail(self):
         url = self._url("rounds")

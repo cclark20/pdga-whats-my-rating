@@ -22,6 +22,7 @@ def _make_mock_player(
     fixture_file="player_27523_2025-11-11.csv",
     new_tournaments=None,
     membership_status="Current (through 31-Dec-2026)",
+    prev_rating_date=None,
 ):
     """Build a mock Player with real fixture data."""
     player = MagicMock()
@@ -32,6 +33,7 @@ def _make_mock_player(
     player.rating_date = rating_date
     player.new_tournaments = new_tournaments
     player.membership_status = membership_status
+    player.prev_rating_date = prev_rating_date
 
     if fixture_file:
         df = pd.read_csv(f"{FIXTURES_DIR}/{fixture_file}", parse_dates=["date"])

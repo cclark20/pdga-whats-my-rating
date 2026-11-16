@@ -6,7 +6,7 @@ import requests
 import streamlit as st
 from classes.player import Player
 from utils import figs
-from utils.rating_calc import calculate_rating
+from utils.rating_calc import aged_out_rounds, calculate_rating
 
 logger = logging.getLogger(__name__)
 
@@ -282,37 +282,27 @@ def show_player(pdga_no):
 
             # Rounds aged out of window
             st.markdown("#### Rounds Aged Out of Window")
-            o_max_date = official_df.loc[
-                ~official_df.tournament.str.contains(
-                    "(Unrated)", case=False, na=False, regex=False
-                ),
-                "date",
-            ].max()
-            aged_out_lookback = (
-                pd.DateOffset(years=2)
-                if official_window_months == 12
-                else pd.DateOffset(years=3)
-            )
-            aged_out_min = o_max_date - aged_out_lookback
-            aged_out = official_df[
-                (official_df["evaluated"] == "No")
-                & (official_df["date"] >= aged_out_min)
-            ]
-            if not aged_out.empty:
-                st.caption(
-                    "These rounds were likely included in a previous official"
-                    f" rating but have since fallen outside the"
-                    f" {official_window_months}-month evaluation window."
-                )
-                st.dataframe(
-                    aged_out[_round_cols],
-                    column_config=_link_col,
-                    hide_index=True,
-                )
+            if player.prev_rating_date is None:
+                st.markdown("**No previous official rating** to compare against.")
             else:
-                st.markdown(
-                    "**No rounds have recently aged out** of the evaluation window."
-                )
+                prev_date = player.prev_rating_date.strftime("%d-%b-%Y")
+                aged_out = aged_out_rounds(official_df, player.prev_rating_date)
+                if not aged_out.empty:
+                    st.caption(
+                        f"These rounds counted toward your previous official"
+                        f" rating ({prev_date}) but have since fallen outside"
+                        f" the {official_window_months}-month evaluation window."
+                    )
+                    st.dataframe(
+                        aged_out[_round_cols],
+                        column_config=_link_col,
+                        hide_index=True,
+                    )
+                else:
+                    st.markdown(
+                        "**No rounds aged out** since your previous official"
+                        f" rating ({prev_date})."
+                    )
 
             # Accuracy note
             if official_calc_rating != player.cur_rating:
