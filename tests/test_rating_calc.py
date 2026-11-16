@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
-from utils.rating_calc import calculate_rating
+from utils.rating_calc import aged_out_rounds, calculate_rating
 
 
 def make_df(ratings, dates=None, tiers=None, rounds=None, tournaments=None):
@@ -247,3 +247,81 @@ class TestCalculateRating:
         result_df, _, _, window_months = calculate_rating(df)
         assert window_months == 24
         assert (result_df["evaluated"] == "Yes").all()
+
+
+class TestAgedOutRounds:
+    # mirrors 167210: previous rating 14-Jul-2026, current 10-Nov-2026
+    DATES = [
+        "2026-11-08",
+        "2026-06-21",
+        "2026-06-06",
+        "2026-05-26",
+        "2026-04-26",
+        "2026-04-12",
+        "2026-04-11",
+        "2026-04-03",
+        "2026-02-21",
+        "2025-09-14",
+        "2025-07-20",
+        "2025-06-29",
+        "2025-06-14",
+        "2024-11-10",
+    ]
+
+    def _official(self):
+        df = make_df(
+            [920] * len(self.DATES),
+            dates=self.DATES,
+            tournaments=[f"Event {d}" for d in self.DATES],
+        )
+        official_df, _, _, _ = calculate_rating(df)
+        return official_df
+
+    def test_only_rounds_between_windows(self):
+        """Prev window starts 21-Jun-2025 (from its latest round), current
+        window starts 08-Nov-2025; only rounds in between aged out."""
+        aged = aged_out_rounds(self._official(), pd.Timestamp("2026-07-14"))
+
+        assert sorted(aged["date"].dt.strftime("%Y-%m-%d")) == [
+            "2025-06-29",
+            "2025-07-20",
+            "2025-09-14",
+        ]
+
+    def test_nothing_aged_out_without_new_rounds(self):
+        """If no rounds were added since the previous rating, the window
+        didn't move."""
+        official_df = self._official()
+        official_df = official_df[official_df["date"] < "2026-07-01"]
+        official_df, _, _, _ = calculate_rating(official_df)
+        aged = aged_out_rounds(official_df, pd.Timestamp("2026-07-14"))
+
+        assert aged.empty
+
+    def test_no_rounds_before_previous_rating(self):
+        aged = aged_out_rounds(self._official(), pd.Timestamp("2020-01-01"))
+
+        assert aged.empty
+
+    def test_window_shrinks_from_24_to_12_months(self):
+        """Previous rating used the 24-month window (<8 rounds in 12 months);
+        once enough recent rounds exist, the older rounds age out."""
+        dates = (
+            [f"2026-{m:02d}-01" for m in range(2, 11)]  # 9 new rounds
+            + ["2025-06-01", "2025-03-01"]  # in prev 12-month window
+            + ["2024-12-01", "2024-09-01"]  # only in prev 24-month window
+        )
+        df = make_df(
+            [920] * len(dates), dates=dates, tournaments=[f"E {d}" for d in dates]
+        )
+        official_df, _, _, window = calculate_rating(df)
+        assert window == 12
+
+        aged = aged_out_rounds(official_df, pd.Timestamp("2026-01-15"))
+
+        assert sorted(aged["date"].dt.strftime("%Y-%m-%d")) == [
+            "2024-09-01",
+            "2024-12-01",
+            "2025-03-01",
+            "2025-06-01",
+        ]

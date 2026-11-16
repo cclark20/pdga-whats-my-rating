@@ -88,3 +88,26 @@ def calculate_rating(df):
     rating = np.average(df.rating, weights=df.weight)
 
     return df, int(math.ceil(rating)), threshold, window_months
+
+
+def aged_out_rounds(official_df, prev_rating_date):
+    """
+    Rounds evaluated in the previous official rating but not the current one.
+
+    The previous rating is rebuilt from rounds dated before its effective
+    date, so its window is anchored on the latest round it could include.
+    `official_df` is the calculate_rating output for the current rating.
+    """
+    keys = ["tournament", "date", "round"]
+    prev_rounds = official_df[official_df["date"] < prev_rating_date]
+    if prev_rounds.empty:
+        return official_df.iloc[0:0]
+
+    prev_df, _, _, _ = calculate_rating(prev_rounds)
+    prev_evaluated = prev_df.loc[prev_df["evaluated"] == "Yes", keys]
+    cur_evaluated = official_df.loc[official_df["evaluated"] == "Yes", keys]
+
+    merged = official_df.merge(prev_evaluated, on=keys).merge(
+        cur_evaluated, on=keys, how="left", indicator=True
+    )
+    return merged[merged["_merge"] == "left_only"].drop(columns="_merge")

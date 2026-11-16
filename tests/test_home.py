@@ -22,6 +22,7 @@ def _make_mock_player(
     fixture_file="player_27523_2025-11-11.csv",
     new_tournaments=None,
     membership_status="Current (through 31-Dec-2026)",
+    prev_rating_date=None,
 ):
     """Build a mock Player with real fixture data."""
     player = MagicMock()
@@ -32,9 +33,12 @@ def _make_mock_player(
     player.rating_date = rating_date
     player.new_tournaments = new_tournaments
     player.membership_status = membership_status
+    player.prev_rating_date = prev_rating_date
 
     if fixture_file:
         df = pd.read_csv(f"{FIXTURES_DIR}/{fixture_file}", parse_dates=["date"])
+        if "tournament_url" not in df.columns:
+            df["tournament_url"] = None
         player.ratings_detail_df = df
         player.official_ratings_detail_df = df.copy()
     else:
@@ -160,6 +164,7 @@ class TestDroppedRounds:
             rows.append(
                 {
                     "tournament": f"Recent Tournament {i}",
+                    "tournament_url": None,
                     "date": pd.Timestamp("2025-06-01") - pd.DateOffset(months=i),
                     "tier": "A",
                     "division": "MPO",
@@ -173,6 +178,7 @@ class TestDroppedRounds:
             rows.append(
                 {
                     "tournament": f"Old Tournament {i}",
+                    "tournament_url": None,
                     "date": pd.Timestamp("2024-04-01") - pd.DateOffset(months=i),
                     "tier": "A",
                     "division": "MPO",
@@ -258,6 +264,7 @@ class TestOutlierRounds:
             rows.append(
                 {
                     "tournament": f"Tournament {i}",
+                    "tournament_url": None,
                     "date": pd.Timestamp("2025-06-01") - pd.DateOffset(months=i),
                     "tier": "A",
                     "division": "MPO",
@@ -269,6 +276,7 @@ class TestOutlierRounds:
         rows.append(
             {
                 "tournament": "Bad Day",
+                "tournament_url": None,
                 "date": pd.Timestamp("2025-03-15"),
                 "tier": "A",
                 "division": "MPO",

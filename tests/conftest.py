@@ -8,5 +8,14 @@ def _passthrough_decorator(func=None, **kwargs):
     return lambda f: f
 
 
-# Patch st.cache_data before any module imports it
+_test_secrets = {
+    "pdga_api": {
+        "profile": "https://example.test/{pdga_no}/profile",
+        "rounds": "https://example.test/{pdga_no}/rounds",
+        "events": "https://example.test/{pdga_no}/events",
+    },
+}
+
+# Patch st.cache_data and st.secrets before any module imports them
 patch("streamlit.cache_data", _passthrough_decorator).start()
+patch("streamlit.secrets", _test_secrets).start()
