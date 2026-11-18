@@ -156,6 +156,24 @@ describe("calculateRating", () => {
     expect(result.rounds.filter((r) => r.weight === 2)).toHaveLength(2);
   });
 
+  it("doesn't let recent XM rounds shrink the double-weighted set", () => {
+    const ratings = Array(12).fill(900);
+    const tiers = ["XM", "XM", "XM", ...Array(9).fill("A")];
+    const result = calculateRating(makeRounds(ratings, { tiers }));
+    // 9 evaluated rounds → round(2.25) = 2 doubled, all of them real rounds
+    expect(result.nEvaluated).toBe(9);
+    expect(result.rounds.filter((r) => r.weight === 2)).toHaveLength(2);
+  });
+
+  it("doesn't double-weight a recent unrated round", () => {
+    const tournaments = ["Ice Bowl (Unrated)", ...Array(10).fill("Event")];
+    const result = calculateRating(makeRounds(Array(11).fill(900), { tournaments }));
+    const unrated = result.rounds.find((r) => r.tournament.includes("Unrated"));
+    expect(unrated?.weight).toBe(0);
+    // 10 evaluated → round(2.5) = 2 doubled, both rated
+    expect(result.rounds.filter((r) => r.weight === 2 && r.evaluated)).toHaveLength(2);
+  });
+
   it("does not remove outliers below 7 rounds", () => {
     const result = calculateRating(makeRounds([950, 950, 950, 950, 950, 600]));
     const outlier = result.rounds.find(byRating(600));

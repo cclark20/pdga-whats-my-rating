@@ -6,7 +6,15 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/*.md", "!frontend", "!pdga_whats_my_rating", "!tests"]
+    "includes": [
+      "**",
+      "!**/*.md",
+      "!frontend",
+      "!pdga_whats_my_rating",
+      "!tests",
+      "!**/*.html",
+      "!**/*.svg"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -26,6 +34,11 @@
       "source": {
         "organizeImports": "on"
       }
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   }
 }

@@ -52,15 +52,14 @@ const roundKey = (r: Round) => `${r.tournament}\u0000${r.date}\u0000${r.round}`;
  * - Outlier removal at 2.5 SD / 100 pts below avg (only when ≥7 rounds)
  */
 export function calculateRating(input: Round[]): Breakdown {
-  // newest first; position is taken before the XM filter, matching the
-  // index labels the Python version sliced on
+  // newest first, XM excluded
   const sorted = input
     .map((r) => ({ ...r }))
     .sort((a, b) =>
       a.date === b.date ? compareRound(a.round, b.round) : a.date < b.date ? 1 : -1,
     )
-    .map((r, pos) => ({ r, pos }))
-    .filter(({ r }) => r.tier !== "XM");
+    .filter((r) => r.tier !== "XM")
+    .map((r) => ({ r }));
 
   const isUnrated = (r: Round) => r.tournament.toLowerCase().includes("(unrated)");
   // newest first, so the first rated round anchors the window
@@ -79,16 +78,18 @@ export function calculateRating(input: Round[]): Breakdown {
 
   const weights: number[] = valid.map((v) => (v ? 1 : 0));
 
-  // double the last 25% (computed before outlier removal)
-  // only when ≥9 evaluated rounds (PDGA rule).
-  // NOTE: like the Python version, this marks the newest rows by sorted
-  // position, so an XM round there shrinks the set and a recent unrated round
-  // can get weight 2. Kept for parity with the accuracy fixtures.
+  // double the most recent 25% of evaluated rounds (computed before outlier
+  // removal), only when ≥9 evaluated rounds (PDGA rule). Counting evaluated
+  // rounds, not rows, keeps XM and unrated rounds from taking a slot; the
+  // Python version sliced by row position and got both wrong.
   const evaluatedCount = valid.filter(Boolean).length;
   if (evaluatedCount >= 9) {
-    const numDouble = roundHalfEven(evaluatedCount * 0.25);
-    sorted.forEach(({ pos }, i) => {
-      if (pos < numDouble) weights[i] = 2;
+    let remaining = roundHalfEven(evaluatedCount * 0.25);
+    valid.forEach((v, i) => {
+      if (v && remaining > 0) {
+        weights[i] = 2;
+        remaining--;
+      }
     });
   }
 

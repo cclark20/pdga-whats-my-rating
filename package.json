@@ -3,19 +3,25 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "shared"
+    "shared",
+    "server",
+    "web"
   ],
   "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,green \"npm run dev -w @wmr/server\" \"npm run dev -w @wmr/web\"",
+    "build": "npm run build -w @wmr/web",
+    "start": "npm start -w @wmr/server",
     "test": "vitest run",
     "typecheck": "tsc -b",
     "check": "biome ci . && tsc -b"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.8",
     "@types/node": "^26.6.6",
+    "concurrently": "^10.0.7",
     "typescript": "^7.0.2",
     "vitest": "^5.1.1"
   }
