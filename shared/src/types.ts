@@ -42,3 +42,56 @@ export interface Breakdown {
   /** Newest first. */
   rounds: RatedRound[];
 }
+
+export interface PlayerInfo {
+  pdgaNo: number;
+  name: string;
+  location: string | null;
+  /** Null when PDGA has no expiration date on file. */
+  membership: { current: boolean; expDate: string } | null;
+  /** Null for expired members: PDGA only shows a rating for current members. */
+  officialRating: number | null;
+  /** Effective date of the official rating, `YYYY-MM-DD`. */
+  ratingDate: string | null;
+  /** Official rating minus the previous official rating. */
+  ratingChange: number | null;
+  /** Effective date of the previous official rating, `YYYY-MM-DD`. */
+  prevRatingDate: string | null;
+}
+
+/** An event that isn't in the official rating yet. */
+export interface NewEvent {
+  tournament: string;
+  tournamentUrl: string;
+  date: string;
+  tier: string;
+  division: string | null;
+  place: number | null;
+  avgRoundRating: number | null;
+  /** False when per-round ratings couldn't be fetched from live scoring. */
+  roundsFound: boolean;
+}
+
+export interface PlayerResponse {
+  player: PlayerInfo;
+  /** Our reconstruction of the current official rating; null without one. */
+  official: Breakdown | null;
+  /** Official rounds plus new events; null when the player has no rated rounds. */
+  projected: Breakdown | null;
+  newEvents: NewEvent[];
+  /** Rounds in the previous official rating that aged out of the current one. */
+  agedOut: RatedRound[];
+  /** Rounds in the current official rating that the projection no longer counts. */
+  droppedFromWindow: RatedRound[];
+}
+
+export type ApiErrorCode =
+  | "invalid_pdga_no"
+  | "not_found"
+  | "rate_limited"
+  | "upstream_error";
+
+export interface ApiError {
+  error: ApiErrorCode;
+  message: string;
+}
