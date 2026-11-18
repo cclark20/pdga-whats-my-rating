@@ -14,7 +14,15 @@ A Streamlit web app that calculates unofficial PDGA (Professional Disc Golf Asso
 - **Format:** `uv run ruff format .`
 - **Test:** `uv run pytest`
 
+TypeScript rebuild (in progress, replaces Streamlit; npm workspaces at repo root):
+
+- **Install:** `npm install`
+- **Lint + format check + typecheck:** `npm run check` (Biome + `tsc -b`); auto-fix with `npx biome check --write .`
+- **Test:** `npm test` (Vitest)
+
 ## Architecture
+
+- **`shared/src/rating.ts`** — TS port of `rating_calc.py`: `calculateRating()` returns a `Breakdown` (`rating`/`threshold` are `null` when not applicable), plus `agedOutRounds()` and `droppedFromWindow()`. Verified round-for-round against the Python on every fixture. Porting traps kept on purpose: Python's banker's rounding for the double-weight count (`roundHalfEven`), population std dev, `pd.DateOffset` Feb-29 clamping (`subtractYears`), and double-weighting by sorted position after the XM filter. Rounds sort numerically (Python live data sorted `"10"` before `"2"`).
 
 - **`pdga_whats_my_rating/Home.py`** — Streamlit entrypoint. Handles form input, displays metrics, charts, and data tables.
 - **`classes/player.py`** — `Player` class that scrapes pdga.com for a player's info, ratings detail, and recent events. Fetches from three sources: player home page, `/details` page, and individual tournament pages for new (not-yet-rated) tournaments.

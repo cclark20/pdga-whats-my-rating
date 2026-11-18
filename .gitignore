@@ -165,3 +165,7 @@ cython_debug/
 # Private PDGA API notes/docs (do not publish)
 api-notes.md
 PDGA_LIVE_API_DOCS.md
+
+# Node
+node_modules/
+*.tsbuildinfo
