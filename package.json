@@ -1,0 +1,22 @@
+{
+  "name": "pdga-whats-my-rating",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -b",
+    "check": "biome ci . && tsc -b"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}
